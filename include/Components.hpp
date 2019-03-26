@@ -51,6 +51,7 @@ class CSensorArray
 {
 public:
     std::vector<std::shared_ptr<GridSensor>>     gridSensors;
+    std::vector<std::shared_ptr<GridSensor>>     oppGridSensors;
     std::vector<std::shared_ptr<PuckSensor>>     puckSensors;
     std::vector<std::shared_ptr<ObstacleSensor>> obstacleSensors;
     CSensorArray() {}
@@ -96,6 +97,21 @@ public:
     CColor() {}
     CColor(int rr, int gg, int bb, int aa)
         : r((uint8_t)rr), g((uint8_t)gg), b((uint8_t)bb), a((uint8_t)aa) {}
+};
+
+// Used to draw a vector from a robot (or potentially other entity)
+class CVectorIndicator
+{
+public:
+    double angle, length;
+
+    uint8_t r = 255;
+    uint8_t g = 255;
+    uint8_t b = 255;
+    uint8_t a = 255;
+    CVectorIndicator() {}
+    CVectorIndicator(double a, double l, int rr, int gg, int bb, int aa)
+        : angle(a), length(l), r((uint8_t)rr), g((uint8_t)gg), b((uint8_t)bb), a((uint8_t)aa) { }
 };
 
 class EntityController;

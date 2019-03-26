@@ -1,109 +1,25 @@
 #include "CWaggle.h"
 #include "custom_world.hpp"
+#include "controllers.hpp"
+#include "MyEval.hpp"
+#include "MyExperiment.hpp"
+#include <math.h>
 
-int controllerCounter = 3;
-
-class EntityController_OrbitalConstruction : public EntityController
-{
-    std::shared_ptr<World> m_world;
-    Entity          m_robot;
-    SensorReading   m_reading;
-    double          m_threshold[2] = { .9, 0.6 };
-
-public:
-
-    EntityController_OrbitalConstruction(Entity robot, std::shared_ptr<World> world)
-        : m_world(world)
-        , m_robot(robot)
-    {
-m_threshold[0] = controllerCounter / 10.0;
-controllerCounter++;
-
-    }
-
-    virtual EntityAction getAction()
-    {
-        // read the sensors and store it in m_reading
-        SensorTools::ReadSensorArray(m_robot, m_world, m_reading);
-
-        const double MaxAngularSpeed = 0.3;
-        const double ForwardSpeed = 2;
-
-        if (m_reading.leftObstacle > 0)
-        {
-            m_previousAction = EntityAction(ForwardSpeed, MaxAngularSpeed);
-            return m_previousAction;
-        }
-
-//        size_t type = m_robot.getComponent<CRobotType>().type;
-size_t type = 0;
- //       bool innie = type == 1;
-bool innie = m_threshold[0] < 0.6;
-
-        if (m_reading.rightNest >= m_reading.midNest && m_reading.midNest >= m_reading.leftNest)
-        {
-            // The gradient is in the desired orientation with the highest
-            // sensed value to the right, then the centre value in the middle,
-            // followed by the lowest on the left.
-
-            // These conditions steer in (for an innie) and out (for an outie)
-            // to nudge a puck inwards or outwards.
-            if (innie && m_reading.rightPucks > 0)
-            {
-                m_previousAction = EntityAction(ForwardSpeed, MaxAngularSpeed);
-                return m_previousAction;
-            }
-            else if (!innie && m_reading.leftPucks > 0)
-            {
-                m_previousAction = EntityAction(ForwardSpeed, -MaxAngularSpeed);
-                return m_previousAction;
-            }
-
-            // We now act to maintain the centre value at the desired isoline.
-            if (m_reading.midNest < m_threshold[type])
-            {
-                m_previousAction = EntityAction(ForwardSpeed, 0.3 * MaxAngularSpeed);
-                return m_previousAction;
-            }
-            else
-            {
-                m_previousAction = EntityAction(ForwardSpeed, -0.3 * MaxAngularSpeed);
-                return m_previousAction;
-            }
-        }
-        else if (m_reading.midNest >= m_reading.rightNest && m_reading.midNest >= m_reading.leftNest)
-        {
-            // We are heading uphill of the gradient, turn left to return to a
-            // clockwise orbit.
-            m_previousAction = EntityAction(ForwardSpeed, -MaxAngularSpeed);
-            return m_previousAction;
-        }
-        else
-        {
-            // We are heading downhill, turn right to return to clockwise orbit.
-            m_previousAction = EntityAction(ForwardSpeed, MaxAngularSpeed);
-            return m_previousAction;
-        }
-    }
-};
-
-
+/*
 void OrbitalConstructionExample(int argc, char ** argv)
 {
-    // set up a new world that will be used for our simulation
-    // let's pull one from the ExampleWorlds
-    //auto world = ExampleWorlds::GetGridWorld720(2);
-    auto world = orbital_av_world::GetGetSquareWorld(600, // width
-                                                     600, // height
-                                                     10,  // number of robots
-                                                     10,  // robot size
+    auto world = orbital_av_world::GetSymmetricWorld(20,  // number of robots
+                                                     10,  // robot radius
+                                                     10,  // sensor radius
                                                      100, // number of pucks
-                                                     10); // puck size
+                                                     12); // puck radius
+
+    std::default_random_engine rng; // Random number generator
 
     // add orbital controllers to all the robots
     for (auto e : world->getEntities("robot"))
     {
-        e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstruction>(e, world));
+        e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstruction2>(e, world, rng));
     }
 
     // create a new simulator with the given world
@@ -120,13 +36,17 @@ void OrbitalConstructionExample(int argc, char ** argv)
     double simulationTimeStep = 1.0;
 
     // how many simulation ticks are peformed before each world render in the GUI
-    double stepsPerRender = 1;
+    double stepsPerRender = 5;
 
     // read that value from console if it exists
     if (argc == 2)
     {
         std::stringstream ss(argv[1]);
         ss >> stepsPerRender;
+        if (stepsPerRender < 1.0) {
+            simulationTimeStep = stepsPerRender;
+            stepsPerRender = 1;
+        }
     }
 
     // run the simulation and gui update() function in a loop
@@ -134,10 +54,8 @@ void OrbitalConstructionExample(int argc, char ** argv)
     {
         for (size_t i = 0; i < stepsPerRender; i++)
         {
-            // un-comment to update the robots with a sample controller
             for (auto & robot : simulator->getWorld()->getEntities("robot"))
             {
-                // if the entity doesn't have a controller we can skip it
                 if (!robot.hasComponent<CController>()) { continue; }
 
                 // get the action that should be done for this entity
@@ -155,13 +73,20 @@ void OrbitalConstructionExample(int argc, char ** argv)
         // if a gui exists, call for its display to update
         // note: simulation is limited by gui frame rate limit
         gui.update();
+
+        //double ssd = MyEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(300,300));
+        //std::cout << ssd << "\n";
     }
 }
+*/
 
 int main(int argc, char ** argv)
 {
     // Robots guided by orbital construction algorithm
-    OrbitalConstructionExample(argc, argv);
+
+//    OrbitalConstructionExample(argc, argv);
+
+    MyExperiments::MainExperiment(argc, argv);
 
     return 0;
 }

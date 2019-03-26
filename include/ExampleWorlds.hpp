@@ -102,13 +102,13 @@ namespace ExampleWorlds
             robot.addComponent<CRobotType>(0);
 
             auto & sensors = robot.addComponent<CSensorArray>();
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 45, robotSize * 2));
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, robotSize * 2));
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, -45, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, -30, robotSize * 4, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, 30, robotSize * 4, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, 60, robotSize * 7, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, -60, robotSize * 7, robotSize * 2));
+            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, 45, robotSize * 2));
+            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, 0, robotSize * 2));
+            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, -45, robotSize * 2));
+            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", -30, robotSize * 4, robotSize * 2));
+            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", 30, robotSize * 4, robotSize * 2));
+            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", 60, robotSize * 7, robotSize * 2));
+            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", -60, robotSize * 7, robotSize * 2));
             sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, 45, robotSize, robotSize/4));
             sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, -45, robotSize, robotSize/4));
         }
@@ -127,7 +127,7 @@ namespace ExampleWorlds
             puck.addComponent<CColor>(200, 44, 44, 255);
         }
         
-        world->setGrid(ExampleGrids::GetInverseCenterDistanceGrid(64, 64));
+        world->addGrid(ExampleGrids::GetInverseCenterDistanceGrid(64, 64));
 
         world->update();
         return world;

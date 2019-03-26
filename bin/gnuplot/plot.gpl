@@ -1,8 +1,21 @@
 set xlabel "Simulation Steps"
-set ylabel "Cluster Evaluation"
-plot "1.txt" with lines, \
-     "2.txt" with lines, \
-     "4.txt" with lines, \
-     "8.txt" with lines
-pause 1
-reread
+set ylabel "Evaluation"
+#plot "output_0.txt" with lines, \
+#     "output_1.txt" with lines, \
+#     "output_2.txt" with lines , \
+#     "output_3.txt" with lines, \
+#     "output_4.txt" with lines, \
+#     "output_5.txt" with lines, \
+#     "output_6.txt" with lines, \
+#     "output_7.txt" with lines, \
+#     "output_8.txt" with lines, \
+#     "output_9.txt" with lines
+show errorbars
+plot "output_4.txt" with lines, \
+     "output_5.txt" with lines, \
+     "output_6.txt" with lines, \
+     "output_7.txt" with lines, \
+     "output_8.txt" with lines, \
+     "output_9.txt" with lines
+pause -1
+#reread

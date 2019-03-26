@@ -157,6 +157,10 @@ class Simulator
                 double dist = t1.p.dist(t2.p);
                 double overlap = (b1.r + b2.r) - dist;
 
+                // AV: To prevent division by zero in the loop below in case the circles are coincident.                
+                if (dist == 0)
+                    dist = 0.1;
+
                 // circles overlap if the overlap is positive
                 if (overlap > m_overlapThreshold)
                 {
@@ -241,7 +245,9 @@ public:
         // populate the vector of entities we care about colliding
         m_collisionEntities.clear();
         appendTo(m_world->getEntities("robot"), m_collisionEntities);
-        appendTo(m_world->getEntities("puck"), m_collisionEntities);
+//        appendTo(m_world->getEntities("puck"), m_collisionEntities);
+appendTo(m_world->getEntities("red_puck"), m_collisionEntities);
+appendTo(m_world->getEntities("green_puck"), m_collisionEntities);
 
         // do the actual simulation
         movement();

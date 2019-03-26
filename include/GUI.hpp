@@ -22,11 +22,29 @@ class GUI
     Entity              m_selectedLine;
     bool                m_selectedLineStart = false;
     bool                m_debug = false;
-    bool                m_grid = false;
     bool                m_sensors = false;
     std::string         m_status = "";
     
-    std::vector<sf::RectangleShape> m_gridRectangles;
+    //std::vector<sf::RectangleShape> m_gridRectangles;
+
+    // AV: For drawing a background image.
+    sf::Texture         m_backgroundTexture;
+    sf::Sprite          m_backgroundSprite;
+
+    // AV: To change the background image we set this
+    // pointer.  A NULL value means nothing will be
+    // drawn on the background.
+    sf::Image*          m_backgroundImagePtr;
+
+    std::vector<sf::Image>          m_gridImages;
+
+    // AV: For showing contour lines of the grid.
+    double              m_contourThreshold = 0.01;
+    sf::Image           m_contourImage;
+    //std::vector<sf::RectangleShape> m_contourRectangles;
+
+    // AV: For showing the occupancy of robots
+    sf::Image           m_occupancyImage;
 
     void init(std::shared_ptr<Simulator> sim)
     {
@@ -38,7 +56,8 @@ class GUI
         //m_text.setFillColor(sf::Color::Yellow);
 
         // create the grid rectangle shapes
-        auto & grid = m_sim->getWorld()->getGrid();
+        /*
+        auto & grid = m_sim->getWorld()->getGrid(0);
         if (grid.width() > 0)
         {
             double rWidth = m_sim->getWorld()->width() / (double)grid.width();
@@ -62,6 +81,62 @@ class GUI
                     m_gridRectangles[index].setPosition(rPos);
                 }
             }
+
+            m_contourRectangles = std::vector<sf::RectangleShape>(grid.width() * grid.height());
+            computeContour();
+        }
+        */
+
+        int width = m_sim->getWorld()->width();
+        int height = m_sim->getWorld()->height();
+
+        // Create all images which can be used as the background.
+        for (int i=0; i< m_sim->getWorld()->getNumberOfGrids(); i++) {
+            auto & grid = m_sim->getWorld()->getGrid(i);
+            assert(grid.width() == width);
+            assert(grid.height() == height);
+
+            sf::Image gridImage;
+            gridImage.create(width, height);
+
+            for (size_t x = 0; x < grid.width(); x++)
+            {
+                for (size_t y = 0; y < grid.height(); y++)
+                {
+                    uint8_t c = (uint8_t)(grid.get(x, y) * 255);
+                    sf::Color color(c, c, c);
+                    gridImage.setPixel(x, y, color); 
+                }
+            }
+
+            m_gridImages.push_back(gridImage);
+        }
+
+        m_contourImage.create(width, height);
+        computeContour();
+        m_occupancyImage.create(width, height);
+
+        m_backgroundTexture.loadFromImage(m_occupancyImage);
+        m_backgroundSprite.setTexture(m_backgroundTexture);
+        m_backgroundImagePtr = NULL;
+    }
+        
+    void computeContour() {
+        // If there is no grid, then there can be no contour.
+        auto & grid = m_sim->getWorld()->getGrid(0);
+        if (grid.width() == 0)
+            return;
+
+        for (size_t x = 0; x < grid.width(); x++)
+        {
+            for (size_t y = 0; y < grid.height(); y++)
+            {
+                if (fabs(grid.get(x, y) - m_contourThreshold) < 0.001) {
+                    uint8_t c = (uint8_t)(grid.get(x, y) * 255);
+                    sf::Color color(c, c, c);
+                    m_contourImage.setPixel(x, y, color); 
+                }
+            }
         }
     }
 
@@ -76,6 +151,8 @@ class GUI
                 exit(0);
             }
 
+            bool recomputeContour = false;
+
             // this event is triggered when a key is pressed
             if (event.type == sf::Event::KeyPressed)
             {
@@ -83,11 +160,39 @@ class GUI
                 {
                     case sf::Keyboard::Escape: exit(0); break;
                     case sf::Keyboard::D:      m_debug = !m_debug; break;
-                    case sf::Keyboard::G:      m_grid = !m_grid; break;
                     case sf::Keyboard::S:      m_sensors = !m_sensors; break;
+                    case sf::Keyboard::C:
+                        m_backgroundImagePtr = &m_contourImage;
+                        break;
+                    case sf::Keyboard::O:
+                        m_backgroundImagePtr = &m_occupancyImage;
+                        break;
+                    case sf::Keyboard::R:
+                        m_backgroundImagePtr = &m_gridImages[0];
+                        break;
+                    case sf::Keyboard::G:
+                        m_backgroundImagePtr = &m_gridImages[1];
+                        break;
+                    case sf::Keyboard::Num0:
+                        m_backgroundImagePtr = NULL;
+                        break;
+                    case sf::Keyboard::Left:
+                        m_contourThreshold -= 0.01;
+                        if (m_contourThreshold <= 0)
+                            m_contourThreshold = 0;
+                        recomputeContour = true;
+                        break;
+                    case sf::Keyboard::Right:
+                        m_contourThreshold += 0.01;
+                        recomputeContour = true;
+                        break;
+
                     default: break;
                 }
             }
+
+            if (recomputeContour)
+                computeContour();
 
             if (event.type == sf::Event::MouseButtonPressed)
             {
@@ -204,14 +309,47 @@ class GUI
     {
         m_window.clear();
 
-
-        // draw the value grid
-        if (m_grid)
+        // Fill the occupancy grid
+        sf::Color color(255, 255, 255);
+        for (auto robot : m_sim->getWorld()->getEntities("robot"))
         {
-            for (auto & rect : m_gridRectangles)
+            auto & t = robot.getComponent<CTransform>();
+            m_occupancyImage.setPixel((int)t.p.x, (int)t.p.y, color);   
+        }
+
+
+        // Draw the background image
+        if (m_backgroundImagePtr != NULL)
+        {
+            m_backgroundTexture.update(*m_backgroundImagePtr);
+            m_window.draw(m_backgroundSprite);
+        }
+
+        // draw the contours
+        /*
+        if (m_contours)
+        {
+            for (auto & rect : m_contourRectangles)
             {
                 m_window.draw(rect);
             }
+        }
+        */
+
+        // Draw a white outline around robots.
+        for (auto robot : m_sim->getWorld()->getEntities("robot"))
+        {
+            auto & t = robot.getComponent<CTransform>();
+            auto & s = robot.getComponent<CCircleShape>();
+            auto & c = robot.getComponent<CColor>();
+
+            // Draw a white outline around robots.
+            int radius = s.shape.getRadius() + 1;
+            sf::CircleShape shape(radius, 32);
+            shape.setOrigin((float)radius, (float)radius);
+            shape.setPosition((float)t.p.x, (float)t.p.y);
+            shape.setFillColor(sf::Color(255, 255, 255, 255));
+            m_window.draw(shape);
         }
 
         // draw circles
@@ -289,6 +427,24 @@ class GUI
             }
         }
 
+        // Draw other robot-specific "decorations".
+        for (auto robot : m_sim->getWorld()->getEntities("robot"))
+        {
+            auto & t = robot.getComponent<CTransform>();
+            auto & s = robot.getComponent<CCircleShape>();
+            auto & c = robot.getComponent<CColor>();
+
+            if (!robot.hasComponent<CVectorIndicator>()) { continue; }
+
+            auto & steer = robot.getComponent<CSteer>();
+            auto & vi = robot.getComponent<CVectorIndicator>();
+
+            Vec2 start(t.p.x, t.p.y);
+            Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
+                     t.p.y + vi.length * sin(steer.angle + vi.angle));
+            drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
+        }
+
         for (auto & e : m_sim->getWorld()->getEntities("line"))
         {
             auto & line = e.getComponent<CLineBody>();
@@ -336,12 +492,14 @@ class GUI
         }
 
         // draw information
+        /*
         std::stringstream ss;
         ss << "Num Objs: " << m_sim->getWorld()->getEntities().size() << "\n";
         ss << "CPU Time: " << m_sim->getComputeTime() << "ms\n";
         ss << "Max Time: " << m_sim->getComputeTimeMax() << "ms\n";
         m_text.setString(ss.str());
         m_window.draw(m_text);
+        */
 
         // draw evaluation
         sf::Text text;
@@ -354,7 +512,6 @@ class GUI
 
         m_window.display();
     }
-
     
 public:
 
@@ -380,5 +537,10 @@ public:
     {
         sUserInput();
         sRender();
+    }
+
+    void close()
+    {
+        m_window.close();
     }
 };

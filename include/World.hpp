@@ -17,7 +17,7 @@ class World
     double m_height = 1080; // height of the world 
 
     EntityManager   m_entitiyManager;
-    ValueGrid       m_grid;
+    std::vector<ValueGrid>         m_grids;
 
 public:
 
@@ -38,9 +38,9 @@ public:
         return m_entitiyManager.addEntity(tag);
     }
 
-    void setGrid(const ValueGrid & grid)
+    void addGrid(const ValueGrid & grid)
     {
-        m_grid = grid;
+        m_grids.push_back(grid);
     }
 
     std::vector<Entity> & getEntities()
@@ -53,9 +53,14 @@ public:
         return m_entitiyManager.getEntities(tag);
     }
     
-    ValueGrid & getGrid()
+    ValueGrid & getGrid(size_t index)
     {
-        return m_grid;
+        return m_grids[index];
+    }
+
+    int getNumberOfGrids()
+    {
+        return m_grids.size();
     }
 
     double width() const

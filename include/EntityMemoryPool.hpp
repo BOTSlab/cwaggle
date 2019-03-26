@@ -17,6 +17,7 @@ typedef std::tuple <
     std::vector<CSensorArray>,
     std::vector<CRobotType>,
     std::vector<CSteer>,
+    std::vector<CVectorIndicator>,
     std::vector<CColor>
 > EntityData;
 
@@ -40,6 +41,7 @@ class EntityMemoryPool
         getData<CSteer>().resize(MaxEntities);
         getData<CRobotType>().resize(MaxEntities);
         getData<CController>().resize(MaxEntities);
+        getData<CVectorIndicator>().resize(MaxEntities);
         getData<CColor>().resize(MaxEntities);
         m_hasComponent.resize(MaxEntities);
         m_tags.resize(MaxEntities);
@@ -86,6 +88,7 @@ public:
         getData<CColor>()[entityIndex]        = {};
         getData<CRobotType>()[entityIndex]    = {};
         getData<CController>()[entityIndex]   = {};
+        getData<CVectorIndicator>()[entityIndex]   = {};
         getData<CSteer>()[entityIndex]        = {};
         m_hasComponent[entityIndex]           = {};
         m_tags[entityIndex]                   = tag;
