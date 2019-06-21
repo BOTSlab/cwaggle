@@ -75,6 +75,13 @@ public:
         return instance;
     }
 
+    inline static void Reset()
+    {
+        /*
+        WHAT SHOULD GO HERE
+        */
+    }
+
     inline size_t addEntity(const std::string & tag)
     {
         // look for the next index that contains an inactive entity

@@ -9,6 +9,8 @@
 #include "ExampleWorlds.hpp"
 #include "SensorTools.hpp"
 
+typedef void (*callback_function)(void);
+
 class GUI
 {
     std::shared_ptr<Simulator> m_sim;
@@ -39,12 +41,13 @@ class GUI
     std::vector<sf::Image>          m_gridImages;
 
     // AV: For showing contour lines of the grid.
-    double              m_contourThreshold = 0.01;
     sf::Image           m_contourImage;
-    //std::vector<sf::RectangleShape> m_contourRectangles;
 
     // AV: For showing the occupancy of robots
     sf::Image           m_occupancyImage;
+
+    callback_function   m_leftArrowCallback;
+    callback_function   m_rightArrowCallback;
 
     void init(std::shared_ptr<Simulator> sim)
     {
@@ -54,38 +57,6 @@ class GUI
         m_text.setCharacterSize(24);
         m_text.setPosition(5, 5);
         //m_text.setFillColor(sf::Color::Yellow);
-
-        // create the grid rectangle shapes
-        /*
-        auto & grid = m_sim->getWorld()->getGrid(0);
-        if (grid.width() > 0)
-        {
-            double rWidth = m_sim->getWorld()->width() / (double)grid.width();
-            double rHeight = m_sim->getWorld()->height() / (double)grid.height();
-            sf::Vector2f rectSize((float)rWidth, (float)rHeight);
-
-            // create the 2D grid of rectangles 
-            m_gridRectangles = std::vector<sf::RectangleShape>(grid.width() * grid.height());
-
-            // set the positions and colors of the rectangles
-            for (size_t x = 0; x < grid.width(); x++)
-            {
-                for (size_t y = 0; y < grid.height(); y++)
-                {
-                    sf::Vector2f rPos(x * (float)rWidth, y * (float)rHeight);
-                    uint8_t c = (uint8_t)(grid.get(x, y) * 255);
-                    sf::Color color(c, c, c);
-                    size_t index = y * grid.width() + x;
-                    m_gridRectangles[index].setSize(rectSize);
-                    m_gridRectangles[index].setFillColor(color);
-                    m_gridRectangles[index].setPosition(rPos);
-                }
-            }
-
-            m_contourRectangles = std::vector<sf::RectangleShape>(grid.width() * grid.height());
-            computeContour();
-        }
-        */
 
         int width = m_sim->getWorld()->width();
         int height = m_sim->getWorld()->height();
@@ -113,7 +84,7 @@ class GUI
         }
 
         m_contourImage.create(width, height);
-        computeContour();
+
         m_occupancyImage.create(width, height);
 
         m_backgroundTexture.loadFromImage(m_occupancyImage);
@@ -121,25 +92,6 @@ class GUI
         m_backgroundImagePtr = NULL;
     }
         
-    void computeContour() {
-        // If there is no grid, then there can be no contour.
-        auto & grid = m_sim->getWorld()->getGrid(0);
-        if (grid.width() == 0)
-            return;
-
-        for (size_t x = 0; x < grid.width(); x++)
-        {
-            for (size_t y = 0; y < grid.height(); y++)
-            {
-                if (fabs(grid.get(x, y) - m_contourThreshold) < 0.001) {
-                    uint8_t c = (uint8_t)(grid.get(x, y) * 255);
-                    sf::Color color(c, c, c);
-                    m_contourImage.setPixel(x, y, color); 
-                }
-            }
-        }
-    }
-
     void sUserInput()
     {
         sf::Event event;
@@ -150,8 +102,6 @@ class GUI
             {
                 exit(0);
             }
-
-            bool recomputeContour = false;
 
             // this event is triggered when a key is pressed
             if (event.type == sf::Event::KeyPressed)
@@ -177,22 +127,15 @@ class GUI
                         m_backgroundImagePtr = NULL;
                         break;
                     case sf::Keyboard::Left:
-                        m_contourThreshold -= 0.01;
-                        if (m_contourThreshold <= 0)
-                            m_contourThreshold = 0;
-                        recomputeContour = true;
+                        m_leftArrowCallback();
                         break;
                     case sf::Keyboard::Right:
-                        m_contourThreshold += 0.01;
-                        recomputeContour = true;
+                        m_rightArrowCallback();
                         break;
 
                     default: break;
                 }
             }
-
-            if (recomputeContour)
-                computeContour();
 
             if (event.type == sf::Event::MouseButtonPressed)
             {
@@ -520,6 +463,10 @@ public:
     {
         m_window.create(sf::VideoMode((size_t)m_sim->getWorld()->width(), (size_t)m_sim->getWorld()->height()), "CWaggle");
         m_window.setFramerateLimit(fps);
+
+        // Scale the window size up for high-res screens.
+        int scaleFactor = 1;
+        m_window.setSize(sf::Vector2u(scaleFactor*m_sim->getWorld()->width(), scaleFactor*m_sim->getWorld()->height()));
         init(sim);
     }
 
@@ -543,4 +490,48 @@ public:
     {
         m_window.close();
     }
+
+    void addContour(double contourValue) {
+        // If there is no grid, then there can be no contour.
+        auto & grid = m_sim->getWorld()->getGrid(0);
+        if (grid.width() == 0)
+            return;
+
+        sf::Color white(255, 255, 255);
+        for (size_t x = 1; x < grid.width()-1; x++)
+        {
+            for (size_t y = 1; y < grid.height()-1; y++)
+            {
+                // Compute difference between current cell and given value.
+                double diff = fabs(grid.get(x, y) - contourValue);
+
+                if (diff > 0.1)
+                    continue;
+
+                // Count how many neighbour cells have a smaller difference.
+                int smallerCount = 0;
+                for (int dx = -10; dx <= 10; dx++) {
+                    for (int dy = -10; dy <= 10; dy++) {
+                        if (!(dx == 0 && dy == 0) &&
+                            fabs(grid.get(x+dx, y+dy) - contourValue) <= diff) {
+                            smallerCount++;
+                        }
+                    }
+                }
+//                std::cout << diff << ", " << smallerCount << std::endl;
+
+                if (smallerCount <= 85) {
+                //    sf::Color white((int)(255.0 * diff), (int)(255.0 * diff), (int)(255.0 * diff));
+                    m_contourImage.setPixel(x, y, white); 
+                }
+            }
+        }
+    } 
+
+    void setLeftArrowCallback(callback_function pFunc) {
+        m_leftArrowCallback = pFunc;
+    }   
+    void setRightArrowCallback(callback_function pFunc) {
+        m_rightArrowCallback = pFunc;
+    }   
 };

@@ -100,6 +100,10 @@ public:
         return m_radius;
     }
 
+    inline void adjustAngle(double deltaAngle)
+    {
+        m_angle += deltaAngle;
+    }
 };
 
 // Detects collisions with CLineBody objects.
