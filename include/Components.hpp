@@ -47,6 +47,7 @@ public:
 class GridSensor;
 class PuckSensor;
 class ObstacleSensor;
+class RobotSensor;
 class CSensorArray
 {
 public:
@@ -54,6 +55,7 @@ public:
     std::vector<std::shared_ptr<GridSensor>>     oppGridSensors;
     std::vector<std::shared_ptr<PuckSensor>>     puckSensors;
     std::vector<std::shared_ptr<ObstacleSensor>> obstacleSensors;
+    std::vector<std::shared_ptr<RobotSensor>>    robotSensors;
     CSensorArray() {}
 };
 
@@ -112,6 +114,26 @@ public:
     CVectorIndicator() {}
     CVectorIndicator(double a, double l, int rr, int gg, int bb, int aa)
         : angle(a), length(l), r((uint8_t)rr), g((uint8_t)gg), b((uint8_t)bb), a((uint8_t)aa) { }
+};
+
+// Simulates a triangular plow attached to the front of a robot.
+class CPlowBody
+{
+public:
+    double width, length;
+    sf::ConvexShape shape;
+
+    CPlowBody() {}
+    CPlowBody(double w, double l)
+        : width(w)
+        , length(l)
+        , shape()
+    {
+        shape.setPointCount(3);
+        shape.setPoint(0, sf::Vector2f(0, -w/2.0f));
+        shape.setPoint(1, sf::Vector2f(l, 0));
+        shape.setPoint(2, sf::Vector2f(0, w/2.0f));
+    }
 };
 
 class EntityController;

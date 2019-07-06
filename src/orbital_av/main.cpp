@@ -1,92 +1,93 @@
+//=================================================================================================
+//                    Copyright (C) 2017 Olivier Mallet - All Rights Reserved                      
+//=================================================================================================
+
 #include "CWaggle.h"
 #include "worlds.hpp"
 #include "controllers.hpp"
 #include "MyEval.hpp"
 #include "MyExperiment.hpp"
-#include <math.h>
+#include "GALGO-2.0/Galgo.hpp"
 
-/*
-void OrbitalConstructionExample(int argc, char ** argv)
+//using namespace MyExperiments;
+
+// objective class example
+template <typename T>
+class MyObjective
 {
-    auto world = orbital_av_world::GetSymmetricWorld(20,  // number of robots
-                                                     10,  // robot radius
-                                                     10,  // sensor radius
-                                                     100, // number of pucks
-                                                     12); // puck radius
+public:
+   // objective function example : Rosenbrock function
+   // minimizing f(x,y) = (1 - x)^2 + 100 * (y - x^2)^2
+   static std::vector<T> Objective(const std::vector<T>& x)
+   {
+      //T obj = -(pow(1-x[0],2)+100*pow(x[1]-x[0]*x[0],2));
 
-    std::default_random_engine rng; // Random number generator
+      T obj = MyExperiments::runWithDefaultConfig((int) x[0], (int) x[1], (int) x[2]);
+      return {obj};
+   }
+   // NB: GALGO maximize by default so we will maximize -f(x,y)
+};
 
-    // add orbital controllers to all the robots
-    for (auto e : world->getEntities("robot"))
-    {
-        e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstruction2>(e, world, rng));
-    }
-
-    // create a new simulator with the given world
-    auto simulator = std::make_shared<Simulator>(world);
-
-    // set up a GUI to visualize the simulation with a given frame rate limit
-    // the frame rate limit should be set at least as high as your monitor refresh rate
-    // this is completely optional, simulation will run with no visualization
-    // GUI can also be created at any time to start visualizing an ongoing simulation
-    GUI gui(simulator, 144);
-
-    // determines the amount of 'time' that passes per simulation tick
-    // lower is more 'accurate', but 'slower' to get to a given time
-    double simulationTimeStep = 1.0;
-
-    // how many simulation ticks are peformed before each world render in the GUI
-    double stepsPerRender = 5;
-
-    // read that value from console if it exists
-    if (argc == 2)
-    {
-        std::stringstream ss(argv[1]);
-        ss >> stepsPerRender;
-        if (stepsPerRender < 1.0) {
-            simulationTimeStep = stepsPerRender;
-            stepsPerRender = 1;
-        }
-    }
-
-    // run the simulation and gui update() function in a loop
-    while (true)
-    {
-        for (size_t i = 0; i < stepsPerRender; i++)
-        {
-            for (auto & robot : simulator->getWorld()->getEntities("robot"))
-            {
-                if (!robot.hasComponent<CController>()) { continue; }
-
-                // get the action that should be done for this entity
-                EntityAction action = robot.getComponent<CController>().controller->getAction();
-
-                // have the action apply its effects to the entity
-                action.doAction(robot, simulationTimeStep);
-            }
-
-            // call the world physics simulation update
-            // parameter = how much sim time should pass (default 1.0)
-            simulator->update(simulationTimeStep);
-        }
-
-        // if a gui exists, call for its display to update
-        // note: simulation is limited by gui frame rate limit
-        gui.update();
-
-        //double ssd = MyEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(300,300));
-        //std::cout << ssd << "\n";
-    }
+// constraints example:
+// 1) x * y + x - y + 1.5 <= 0
+// 2) 10 - x * y <= 0
+/*
+template <typename T>
+std::vector<T> MyConstraint(const std::vector<T>& x)
+{
+   return {x[0]*x[1]+x[0]-x[1]+1.5,10-x[0]*x[1]};
 }
 */
+// NB: a penalty will be applied if one of the constraints is > 0 
+// using the default adaptation to constraint(s) method
+
+
+void runGA() {
+   // initializing parameters lower and upper bounds
+   // an initial value can be added inside the initializer list after the upper bound
+   galgo::Parameter<double, 6> par1({1,64});
+   galgo::Parameter<double, 6> par2({1,64});
+   galgo::Parameter<double, 6> par3({1,64});
+   // here both parameter will be encoded using 16 bits the default value inside the template declaration
+   // this value can be modified but has to remain between 1 and 64
+
+   // initiliazing genetic algorithm
+   galgo::GeneticAlgorithm<double> ga(MyObjective<double>::Objective,100,500,true,par1,par2,par3);
+
+   // setting constraints
+   //ga.Constraint = MyConstraint;
+
+   // running genetic algorithm
+   ga.run();
+}
 
 int main(int argc, char ** argv)
-{
-    // Robots guided by orbital construction algorithm
+{   
+   // Read the config file name from console if it exists
+   std::string configFile = "lgtv_config.txt";
 
-//    OrbitalConstructionExample(argc, argv);
+   if (argc != 2 && argc != 5) {      
+      cerr << "Usage\n\t[GA MODE] cwaggle_orbital_av CONFIG_FILE" << endl;
+      cerr << "OR\n\t[MANUAL MODE] cwaggle_orbital_av CONFIG_FILE PARAMETERS_FOR_RUN (3)" << endl;
+      return -1;
+   }
 
-    MyExperiments::MainExperiment(argc, argv);
+   configFile = argv[1];
+   MyExperimentConfig config;
+   config.load(configFile);
 
-    return 0;
+   if (argc == 2) {
+      runGA();
+   } else if (argc == 5) {
+      // Manual run with parameters specified.
+      int puckVariant = atoi(argv[2]);
+      int thresholdVariant = atoi(argv[3]);
+      int defaultVariant = atoi(argv[4]);
+      cerr << "puckVariant: " << puckVariant << endl;
+      cerr << "thresholdVariant: " << thresholdVariant << endl;
+      cerr << "defaultVariant: " << defaultVariant << endl;
+      MyExperiments::runExperiment(config, puckVariant, thresholdVariant, defaultVariant);
+   }
+
+   return 0;
 }

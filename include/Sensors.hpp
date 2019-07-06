@@ -159,7 +159,7 @@ public:
     }
 };
 
-/*
+
 class RobotSensor : public Sensor
 {
     double m_radius;
@@ -176,9 +176,9 @@ public:
     {
         double sum = 0;
         Vec2 pos = getPosition();
-        for (auto & entity : m_world->getEntities("robot"))
+        for (auto e : world->getEntities())
         {
-            if (!e.hasComponent<CCircleBody>()) { continue; }
+            if (!e.hasComponent<CSteer>()) { continue; }
             if (m_ownerID == e.id()) { continue; }
 
             auto & t = e.getComponent<CTransform>();
@@ -198,4 +198,3 @@ public:
         return m_radius;
     }
 };
-*/

@@ -6,6 +6,7 @@
 #include <vector>
 
 const size_t MaxEntities = 20000;
+//const size_t MaxEntities = 20000000;
 const size_t MaxComponents = 32;
 
 typedef std::tuple <
@@ -18,6 +19,7 @@ typedef std::tuple <
     std::vector<CRobotType>,
     std::vector<CSteer>,
     std::vector<CVectorIndicator>,
+    std::vector<CPlowBody>,
     std::vector<CColor>
 > EntityData;
 
@@ -42,6 +44,7 @@ class EntityMemoryPool
         getData<CRobotType>().resize(MaxEntities);
         getData<CController>().resize(MaxEntities);
         getData<CVectorIndicator>().resize(MaxEntities);
+        getData<CPlowBody>().resize(MaxEntities);
         getData<CColor>().resize(MaxEntities);
         m_hasComponent.resize(MaxEntities);
         m_tags.resize(MaxEntities);
@@ -78,7 +81,27 @@ public:
     inline static void Reset()
     {
         /*
-        WHAT SHOULD GO HERE
+        static EntityMemoryPool instance;
+        for (int i=0; i<MaxEntities; i++) {
+            instance.m_tags[i] = "";
+            instance.m_active[i] = false;
+            instance.m_hasComponent[i] = {};
+
+            instance.getData<CTransform>()[i] = {};
+            instance.getData<CCircleBody>()[i] = {};
+            instance.getData<CCircleShape>()[i] = {};
+            instance.getData<CLineBody>()[i] = {};
+            instance.getData<CSensorArray>()[i] = {};
+            instance.getData<CSteer>()[i] = {};
+            instance.getData<CRobotType>()[i] = {};
+            instance.getData<CController>()[i] = {};
+            instance.getData<CVectorIndicator>()[i] = {};
+            instance.getData<CColor>()[i] = {};
+
+        }
+        instance.m_numEntities = 0;
+        instance.m_previousEntityIndex = 0;
+        //std::cerr << "RESET\n";
         */
     }
 
@@ -96,6 +119,7 @@ public:
         getData<CRobotType>()[entityIndex]    = {};
         getData<CController>()[entityIndex]   = {};
         getData<CVectorIndicator>()[entityIndex]   = {};
+        getData<CPlowBody>()[entityIndex]   = {};
         getData<CSteer>()[entityIndex]        = {};
         m_hasComponent[entityIndex]           = {};
         m_tags[entityIndex]                   = tag;

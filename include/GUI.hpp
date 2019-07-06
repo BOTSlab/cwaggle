@@ -217,8 +217,9 @@ class GUI
         {
             auto & t = m_selected.getComponent<CTransform>();
             Vec2 diff(m_mousePos.x - t.p.x, m_mousePos.y - t.p.y);
-            diff /= 10;
-            t.v = diff;
+            //diff /= 10;
+            //t.v = diff;
+            t.p += diff;
         }
 
         if (m_selectedLine != Entity())
@@ -280,6 +281,7 @@ class GUI
         */
 
         // Draw a white outline around robots.
+        /*
         for (auto robot : m_sim->getWorld()->getEntities("robot"))
         {
             auto & t = robot.getComponent<CTransform>();
@@ -293,6 +295,23 @@ class GUI
             shape.setPosition((float)t.p.x, (float)t.p.y);
             shape.setFillColor(sf::Color(255, 255, 255, 255));
             m_window.draw(shape);
+        }
+        */
+
+        // draw robot plows
+        for (auto e : m_sim->getWorld()->getEntities())
+        {
+            if (!e.hasComponent<CPlowBody>()) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & pb = e.getComponent<CPlowBody>();
+            auto & c = e.getComponent<CColor>();
+            auto & steer = e.getComponent<CSteer>();
+    
+            pb.shape.setPosition((float)t.p.x, (float)t.p.y);
+            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
+            pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));
+            m_window.draw(pb.shape);
         }
 
         // draw circles
@@ -352,6 +371,18 @@ class GUI
                     double reading = sensor->getReading(m_sim->getWorld());
                     if (reading > 0) { sensorShape.setFillColor(sf::Color(255, 255, 255, 80)); }
                     else { sensorShape.setFillColor(sf::Color(0, 255, 255, 80)); }
+                    m_window.draw(sensorShape);
+                }
+
+                for (auto sensor : sensors.robotSensors)
+                {
+                    sf::CircleShape sensorShape((float)sensor->radius(), 32);
+                    sensorShape.setOrigin((float)sensor->radius(), (float)sensor->radius());
+                    Vec2 pos = sensor->getPosition();
+                    sensorShape.setPosition((float)pos.x, (float)pos.y);
+                    double reading = sensor->getReading(m_sim->getWorld());
+                    if (reading > 0) { sensorShape.setFillColor(sf::Color(255, 255, 255, 80)); }
+                    else { sensorShape.setFillColor(sf::Color(255, 255, 0, 80)); }
                     m_window.draw(sensorShape);
                 }
 
@@ -425,7 +456,10 @@ class GUI
             text.setFont(m_font);
             text.setCharacterSize(12);
             text.setString(reading.toString());
-            text.setPosition((float)t.p.x, (float)t.p.y);
+            //text.setPosition((float)t.p.x, (float)t.p.y);
+            float w = m_sim->getWorld()->width();
+            float h = m_sim->getWorld()->height();
+            text.setPosition(w/2.0, h/2.0);
             m_window.draw(text);
         }
         

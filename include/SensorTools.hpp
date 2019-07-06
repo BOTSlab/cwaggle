@@ -26,6 +26,10 @@ struct SensorReading
     double leftObstacle = 0;
     double rightObstacle = 0;
 
+    // robot sensor readings
+    double leftRobot = 0;
+    double rightRobot = 0;
+
     std::string toString()
     {
         std::stringstream ss;
@@ -38,7 +42,9 @@ struct SensorReading
         ss << "lPuck: " << leftPucks << "\n";
         ss << "rPuck: " << rightPucks << "\n";
         ss << "lObst: " << leftObstacle << "\n";
-        ss << "rObst: " << rightObstacle;
+        ss << "rObst: " << rightObstacle << "\n";
+        ss << "lRobot: " << leftRobot << "\n";
+        ss << "rRobot: " << rightRobot;
         return ss.str();
     }
 };
@@ -67,12 +73,15 @@ namespace SensorTools
             if (sensor->angle() <= 0) { reading.leftObstacle += sensor->getReading(world); }
             if (sensor->angle() > 0) { reading.rightObstacle += sensor->getReading(world); }
         }
+        for (auto & sensor : sensors.robotSensors)
+        {
+            if (sensor->angle() <= 0) { reading.leftRobot += sensor->getReading(world); }
+            if (sensor->angle() > 0) { reading.rightRobot += sensor->getReading(world); }
+        }
         for (auto & sensor : sensors.puckSensors)
         {
             if (sensor->angle() <= 0) { reading.leftPucks += sensor->getReading(world); }
             if (sensor->angle() > 0) { reading.rightPucks += sensor->getReading(world); }
         }
     }
-
-    
 }

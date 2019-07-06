@@ -60,7 +60,7 @@ class Simulator
         {
             auto & t = e.getComponent<CTransform>();
 
-            if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
+//            if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
             t.a = t.v * -m_deceleration;
             t.p += t.v * m_timeStep;
             t.v += t.a * m_timeStep;
@@ -101,42 +101,33 @@ class Simulator
             for (auto & e : m_world->getEntities("line"))
             {
                 auto & edge = e.getComponent<CLineBody>();
+                handleCollisionWithLineBody(b1, t1, edge, false);
+            }
 
-                double lineX1 = edge.e.x - edge.s.x;
-                double lineY1 = edge.e.y - edge.s.y;
-                double lineX2 = t1.p.x - edge.s.x;
-                double lineY2 = t1.p.y - edge.s.y;
+            // AV: step 1.5: check collisions of all circles against all robots with plows
+            for (auto & e : m_world->getEntities("robot"))
+            {
+                if (!e.hasComponent<CPlowBody>()) { continue; }
 
-                double edgeLength = lineX1 * lineX1 + lineY1 * lineY1;
-                double dotProd = lineX1 * lineX2 + lineY1 * lineY2;
-                double t = std::max(0.0, std::min(edgeLength, dotProd)) / edgeLength;
+                // Do not check with collisions between a robot's CircleBody and its own plow.
+                if (e1.id() == e.id()) { continue; }
 
-                // find the closest point on the line to the circle and the distance to it
-                Vec2 closestPoint(edge.s.x + t * lineX1, edge.s.y + t * lineY1);
-                double distance = closestPoint.dist(t1.p);
+                // Also don't check for collisions between the plow of one robot and another's body
+                // this isn't properly handled.
+                if (e1.hasComponent<CPlowBody>()) { continue; }
 
-                // pretend the closest point on the line is a circle and check collision
-                // calculate the overlap between the circle and that fake circle
-                double overlap = b1.r + edge.r - distance;
+                auto & t = e.getComponent<CTransform>();
+                auto & cb = e.getComponent<CCircleBody>();
+                auto & pb = e.getComponent<CPlowBody>();
+                auto & steer = e.getComponent<CSteer>();
 
-                // if the circle and the line overlap
-                if (overlap > m_overlapThreshold)
-                {
-                    // create a fake circlebody to handle physics
-                    m_fakeBodies.emplace_back(CCircleBody(b1.r));
-                    m_fakeTransforms.emplace_back(CTransform(closestPoint));
-                    m_fakeTransforms.back().v = t1.v * -1.0;
+                // We create (but do not store) a CLineBody object used to check
+                // for collision with the current circle (b1).
+                double xProw = t.p.x + pb.length * cos(steer.angle);
+                double yProw = t.p.y + pb.length * sin(steer.angle);
+                CLineBody wedgeLineBody(Vec2(t.p.x, t.p.y), Vec2(xProw, yProw), pb.width/2.0);
 
-                    // add a collision between the circle and the fake circle
-                    // this will later be resolved in the dynamic collision resolution
-                    m_collisions.push_back({ &t1, &m_fakeTransforms.back(), &b1, &m_fakeBodies.back() });
-
-                    // resolve the static collision by pushing circle away from line
-                    // lines assume infinite mass and do not get moved
-                    t1.p.x += overlap * (t1.p.x - m_fakeTransforms.back().p.x) / distance;
-                    t1.p.y += overlap * (t1.p.y - m_fakeTransforms.back().p.y) / distance;
-                    b1.collided = true;
-                }
+                handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
             }
             
             // if this circle hasn't moved, we don't need to check collisions for it
@@ -188,6 +179,18 @@ class Simulator
             if (t1.p.y - b1.r < 0) { t1.p.y = b1.r; b1.collided = true; }
             if (t1.p.x + b1.r > m_world->width()) { t1.p.x = m_world->width() - b1.r;  b1.collided = true; }
             if (t1.p.y + b1.r > m_world->height()) { t1.p.y = m_world->height() - b1.r; b1.collided = true; }
+
+            // AV: check for collisions between plows and bounds of the world.
+            if (!e1.hasComponent<CPlowBody>()) { continue; }
+            auto & pb = e1.getComponent<CPlowBody>();
+            auto & steer = e1.getComponent<CSteer>();
+            double xProw = t1.p.x + pb.length * cos(steer.angle);
+            double yProw = t1.p.y + pb.length * sin(steer.angle);
+            if (xProw < 0) {t1.p.x -= xProw; b1.collided = true; }
+            if (yProw < 0) {t1.p.y -= yProw; b1.collided = true; }
+            if (xProw > m_world->width()) {t1.p.x -= xProw - m_world->width(); b1.collided = true; }
+            if (yProw > m_world->height()) {t1.p.y -= yProw - m_world->height(); b1.collided = true; }
+
         }
 
         // step 3: calculate and apply dynamic collision resolution to any detected collisions
@@ -217,6 +220,54 @@ class Simulator
         // record the time that this collision calculation took
         m_computeTime = timer.getElapsedTimeInMilliSec();
         m_computeTimeMax = m_computeTime > m_computeTimeMax ? m_computeTime : m_computeTimeMax;
+    }
+
+    // Handles the collision between CCircleBody b1 at position/velocity t1 with the given CLineBody.
+    // If treatAsCone is true then the CLineBody is treated as a cone with a "fat" and a "thin" end.
+    void handleCollisionWithLineBody(CCircleBody &b1, CTransform &t1, CLineBody &lineBody, 
+                                     bool treatAsCone) {
+        double lineX1 = lineBody.e.x - lineBody.s.x;
+        double lineY1 = lineBody.e.y - lineBody.s.y;
+        double lineX2 = t1.p.x - lineBody.s.x;
+        double lineY2 = t1.p.y - lineBody.s.y;
+
+        double edgeLength = lineX1 * lineX1 + lineY1 * lineY1;
+        double dotProd = lineX1 * lineX2 + lineY1 * lineY2;
+        double t = std::max(0.0, std::min(edgeLength, dotProd)) / edgeLength;
+
+        // find the closest point on the line to the circle and the distance to it
+        Vec2 closestPoint(lineBody.s.x + t * lineX1, lineBody.s.y + t * lineY1);
+        double distance = closestPoint.dist(t1.p);
+
+        // pretend the closest point on the line is a circle and check collision
+        // calculate the overlap between the circle and that fake circle
+        double overlap = b1.r - distance;
+        if (treatAsCone) {
+            // The effective radius of this lineBody varies depending on the point of contact 
+            // from a max of r at the "fat" end to a minimum of 0.
+            overlap += (1 - t) * lineBody.r;
+        } else {
+            overlap += lineBody.r;
+        }
+
+        // if the circle and the line overlap
+        if (overlap > m_overlapThreshold)
+        {
+            // create a fake circlebody to handle physics
+            m_fakeBodies.emplace_back(CCircleBody(b1.r));
+            m_fakeTransforms.emplace_back(CTransform(closestPoint));
+            m_fakeTransforms.back().v = t1.v * -1.0;
+
+            // add a collision between the circle and the fake circle
+            // this will later be resolved in the dynamic collision resolution
+            m_collisions.push_back({ &t1, &m_fakeTransforms.back(), &b1, &m_fakeBodies.back() });
+
+            // resolve the static collision by pushing circle away from line
+            // lines assume infinite mass and do not get moved
+            t1.p.x += overlap * (t1.p.x - m_fakeTransforms.back().p.x) / distance;
+            t1.p.y += overlap * (t1.p.y - m_fakeTransforms.back().p.y) / distance;
+            b1.collided = true;
+        }
     }
 
     void appendTo(std::vector<Entity> & src, std::vector<Entity> & dest)

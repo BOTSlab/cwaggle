@@ -111,6 +111,8 @@ namespace ExampleWorlds
             sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", -60, robotSize * 7, robotSize * 2));
             sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, 45, robotSize, robotSize/4));
             sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, -45, robotSize, robotSize/4));
+            sensors.robotSensors.push_back(std::make_shared<RobotSensor>(robot, 30, robotSize * 2, robotSize));
+            sensors.robotSensors.push_back(std::make_shared<RobotSensor>(robot, -30, robotSize * 2, robotSize));
         }
 
         // add the pucks
