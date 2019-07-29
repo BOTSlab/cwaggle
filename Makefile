@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-O3 -std=c++14
 LDFLAGS=-O3 -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
-INCLUDES=-I./include/
+INCLUDES=-I./include/ -I/usr/local/include/eigen3
 SRC_EXAMPLE=$(wildcard src/example/*.cpp) 
 OBJ_EXAMPLE=$(SRC_EXAMPLE:.cpp=.o)
 SRC_ORBITAL=$(wildcard src/orbital/*.cpp) 

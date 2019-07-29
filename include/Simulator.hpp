@@ -51,8 +51,14 @@ class Simulator
             auto & steer     = entity.getComponent<CSteer>();
 
             // update the entity velocity based on angle and speed
-            transform.v.x = steer.speed * cos(steer.angle);
-            transform.v.y = steer.speed * sin(steer.angle);
+            if (steer.slowedCount > 0) {
+                // AV: If the robot is slowed then it cannot reach its commanded velocity.
+                transform.v.x = 0.1 * steer.speed * cos(steer.angle);
+                transform.v.y = 0.1 * steer.speed * sin(steer.angle);
+            } else {
+                transform.v.x = steer.speed * cos(steer.angle);
+                transform.v.y = steer.speed * sin(steer.angle);
+            }
         }
 
         // apply acceleration, velocity to all circles
@@ -60,7 +66,7 @@ class Simulator
         {
             auto & t = e.getComponent<CTransform>();
 
-//            if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
+            if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
             t.a = t.v * -m_deceleration;
             t.p += t.v * m_timeStep;
             t.v += t.a * m_timeStep;
@@ -83,6 +89,15 @@ class Simulator
         {
             if (e.getComponent<CCircleBody>().collided) { e.getComponent<CTransform>().moved = true; }
             e.getComponent<CCircleBody>().collided = false;
+        }
+
+        // AV: No robot is slowed unless it hits another robot or the border.
+        for (auto & entity : m_world->getEntities("robot"))
+        { 
+            if (!entity.hasComponent<CSteer>()) { continue; }
+            auto & steer     = entity.getComponent<CSteer>();
+            if (steer.slowedCount > 0)
+                steer.slowedCount--;
         }
 
         auto & transforms   = EntityMemoryPool::Instance().getData<CTransform>();
@@ -112,10 +127,6 @@ class Simulator
                 // Do not check with collisions between a robot's CircleBody and its own plow.
                 if (e1.id() == e.id()) { continue; }
 
-                // Also don't check for collisions between the plow of one robot and another's body
-                // this isn't properly handled.
-                if (e1.hasComponent<CPlowBody>()) { continue; }
-
                 auto & t = e.getComponent<CTransform>();
                 auto & cb = e.getComponent<CCircleBody>();
                 auto & pb = e.getComponent<CPlowBody>();
@@ -123,8 +134,8 @@ class Simulator
 
                 // We create (but do not store) a CLineBody object used to check
                 // for collision with the current circle (b1).
-                double xProw = t.p.x + pb.length * cos(steer.angle);
-                double yProw = t.p.y + pb.length * sin(steer.angle);
+                double xProw = t.p.x + pb.length * cos(steer.angle + pb.offsetAngle);
+                double yProw = t.p.y + pb.length * sin(steer.angle + pb.offsetAngle);
                 CLineBody wedgeLineBody(Vec2(t.p.x, t.p.y), Vec2(xProw, yProw), pb.width/2.0);
 
                 handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
@@ -184,12 +195,17 @@ class Simulator
             if (!e1.hasComponent<CPlowBody>()) { continue; }
             auto & pb = e1.getComponent<CPlowBody>();
             auto & steer = e1.getComponent<CSteer>();
-            double xProw = t1.p.x + pb.length * cos(steer.angle);
-            double yProw = t1.p.y + pb.length * sin(steer.angle);
-            if (xProw < 0) {t1.p.x -= xProw; b1.collided = true; }
-            if (yProw < 0) {t1.p.y -= yProw; b1.collided = true; }
-            if (xProw > m_world->width()) {t1.p.x -= xProw - m_world->width(); b1.collided = true; }
-            if (yProw > m_world->height()) {t1.p.y -= yProw - m_world->height(); b1.collided = true; }
+            double xProw = t1.p.x + pb.length * cos(steer.angle + pb.offsetAngle);
+            double yProw = t1.p.y + pb.length * sin(steer.angle + pb.offsetAngle);
+            bool plowBorderCollision = false;
+            if (xProw < 0) {t1.p.x -= xProw; b1.collided = true; plowBorderCollision = true; }
+            if (yProw < 0) {t1.p.y -= yProw; b1.collided = true; plowBorderCollision = true; }
+            if (xProw > m_world->width()) {t1.p.x -= xProw - m_world->width(); b1.collided = true; plowBorderCollision = true; }
+            if (yProw > m_world->height()) {t1.p.y -= yProw - m_world->height(); b1.collided = true; plowBorderCollision = true; }
+            // Special slow down for plow/border collisions.
+            if (plowBorderCollision) {
+                steer.slowedCount = 150;
+            }
 
         }
 
@@ -200,6 +216,14 @@ class Simulator
             auto t2 = collision.t2;
             auto b1 = collision.b1;
             auto b2 = collision.b2;
+
+            // AV: If both are robots, then slow them down.
+            /*
+            if (b1->slowAfterCollision && b2->slowAfterCollision) {
+                b1->slowed = true;
+                b2->slowed = true;
+            }
+            */
 
             // normal between the circles
             double dist = t1->p.dist(t2->p);

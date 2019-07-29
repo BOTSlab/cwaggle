@@ -22,6 +22,10 @@ struct SensorReading
     double leftPucks = 0;
     double rightPucks = 0;
 
+    // readings of fancy puck sensor
+    double borderPucks = 0;
+    double innerPucks = 0;
+
     // obstacle sensor readings
     double leftObstacle = 0;
     double rightObstacle = 0;
@@ -35,12 +39,16 @@ struct SensorReading
         std::stringstream ss;
         ss << "lNest: " << leftNest << "\n";
         ss << "mNest: " << midNest << "\n";
-        ss << "rNest: " << rightNest << "\n";
+        ss << "rNest: " << rightNest << "\n\n";
+        /*
         ss << "lOppNest: " << leftOppNest << "\n";
         ss << "mOppNest: " << midOppNest << "\n";
         ss << "rOppNest: " << rightOppNest << "\n";
         ss << "lPuck: " << leftPucks << "\n";
         ss << "rPuck: " << rightPucks << "\n";
+        */
+        ss << "bPuck: " << borderPucks << "\n";
+        ss << "iPuck: " << innerPucks << "\n\n";
         ss << "lObst: " << leftObstacle << "\n";
         ss << "rObst: " << rightObstacle << "\n";
         ss << "lRobot: " << leftRobot << "\n";
@@ -82,6 +90,17 @@ namespace SensorTools
         {
             if (sensor->angle() <= 0) { reading.leftPucks += sensor->getReading(world); }
             if (sensor->angle() > 0) { reading.rightPucks += sensor->getReading(world); }
+        }
+        for (auto & sensor : sensors.puckSensors)
+        {
+            if (sensor->angle() <= 0) { reading.leftPucks += sensor->getReading(world); }
+            if (sensor->angle() > 0) { reading.rightPucks += sensor->getReading(world); }
+        }
+        for (auto & sensor : sensors.fancyPuckSensors) {
+            if (sensor->m_intersectionMode)             
+                reading.innerPucks += sensor->getReadingIntersection(world);
+            else        
+                reading.borderPucks += sensor->getReadingDifference(world);
         }
     }
 }

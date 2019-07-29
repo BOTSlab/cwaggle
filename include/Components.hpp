@@ -25,11 +25,14 @@ class CCircleBody
 public:
     double r = 10;
     double m = 0;
+    bool slowAfterCollision = false;
     bool collided = true;
 
     CCircleBody() {}
     CCircleBody(double radius)
         : r(radius), m(radius * 10) { }
+    CCircleBody(double radius, bool inSlowAfterCollision)
+        : r(radius), m(radius * 10), slowAfterCollision(inSlowAfterCollision) { }
 };
 
 class CCircleShape
@@ -46,6 +49,7 @@ public:
 
 class GridSensor;
 class PuckSensor;
+class FancyPuckSensor;
 class ObstacleSensor;
 class RobotSensor;
 class CSensorArray
@@ -54,6 +58,7 @@ public:
     std::vector<std::shared_ptr<GridSensor>>     gridSensors;
     std::vector<std::shared_ptr<GridSensor>>     oppGridSensors;
     std::vector<std::shared_ptr<PuckSensor>>     puckSensors;
+    std::vector<std::shared_ptr<FancyPuckSensor>>    fancyPuckSensors;
     std::vector<std::shared_ptr<ObstacleSensor>> obstacleSensors;
     std::vector<std::shared_ptr<RobotSensor>>    robotSensors;
     CSensorArray() {}
@@ -86,6 +91,7 @@ class CSteer
 public:
     double angle = 0;
     double speed = 0;
+    int slowedCount = 0;
     CSteer() {}
 };
 
@@ -120,18 +126,21 @@ public:
 class CPlowBody
 {
 public:
-    double width, length;
+    double width, length, offsetAngle;
     sf::ConvexShape shape;
 
     CPlowBody() {}
-    CPlowBody(double w, double l)
+    CPlowBody(double w, double l, double oa)
         : width(w)
         , length(l)
+        , offsetAngle(oa*3.1415926 / 180.0)
         , shape()
     {
         shape.setPointCount(3);
         shape.setPoint(0, sf::Vector2f(0, -w/2.0f));
-        shape.setPoint(1, sf::Vector2f(l, 0));
+        double prowX = l * cos(offsetAngle);
+        double prowY = l * sin(offsetAngle);
+        shape.setPoint(1, sf::Vector2f(prowX, prowY));
         shape.setPoint(2, sf::Vector2f(0, w/2.0f));
     }
 };

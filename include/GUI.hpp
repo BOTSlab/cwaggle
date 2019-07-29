@@ -46,8 +46,8 @@ class GUI
     // AV: For showing the occupancy of robots
     sf::Image           m_occupancyImage;
 
-    callback_function   m_leftArrowCallback;
-    callback_function   m_rightArrowCallback;
+    callback_function   m_upArrowCallback;
+    callback_function   m_downArrowCallback;
 
     void init(std::shared_ptr<Simulator> sim)
     {
@@ -91,6 +91,16 @@ class GUI
         m_backgroundSprite.setTexture(m_backgroundTexture);
         m_backgroundImagePtr = NULL;
     }
+
+    void rotateRobots(double angle)
+    {
+        for (auto & entity : m_sim->getWorld()->getEntities("robot"))
+        { 
+            if (!entity.hasComponent<CSteer>()) { continue; }
+            auto & steer     = entity.getComponent<CSteer>();
+            steer.angle += angle;
+        }        
+    }
         
     void sUserInput()
     {
@@ -127,10 +137,16 @@ class GUI
                         m_backgroundImagePtr = NULL;
                         break;
                     case sf::Keyboard::Left:
-                        m_leftArrowCallback();
+                        rotateRobots(-0.1);
                         break;
                     case sf::Keyboard::Right:
-                        m_rightArrowCallback();
+                        rotateRobots(0.1);
+                        break;
+                    case sf::Keyboard::Up:
+                        m_upArrowCallback();
+                        break;
+                    case sf::Keyboard::Down:
+                        m_downArrowCallback();
                         break;
 
                     default: break;
@@ -269,93 +285,62 @@ class GUI
             m_window.draw(m_backgroundSprite);
         }
 
-        // draw the contours
-        /*
-        if (m_contours)
-        {
-            for (auto & rect : m_contourRectangles)
-            {
-                m_window.draw(rect);
-            }
-        }
-        */
-
-        // Draw a white outline around robots.
-        /*
-        for (auto robot : m_sim->getWorld()->getEntities("robot"))
-        {
-            auto & t = robot.getComponent<CTransform>();
-            auto & s = robot.getComponent<CCircleShape>();
-            auto & c = robot.getComponent<CColor>();
-
-            // Draw a white outline around robots.
-            int radius = s.shape.getRadius() + 1;
-            sf::CircleShape shape(radius, 32);
-            shape.setOrigin((float)radius, (float)radius);
-            shape.setPosition((float)t.p.x, (float)t.p.y);
-            shape.setFillColor(sf::Color(255, 255, 255, 255));
-            m_window.draw(shape);
-        }
-        */
-
-        // draw robot plows
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CPlowBody>()) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & pb = e.getComponent<CPlowBody>();
-            auto & c = e.getComponent<CColor>();
-            auto & steer = e.getComponent<CSteer>();
-    
-            pb.shape.setPosition((float)t.p.x, (float)t.p.y);
-            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
-            pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));
-            m_window.draw(pb.shape);
-        }
-
-        // draw circles
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CCircleShape>()) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & s = e.getComponent<CCircleShape>();
-            auto & c = e.getComponent<CColor>();
-
-            s.shape.setPosition((float)t.p.x, (float)t.p.y);
-            s.shape.setFillColor(sf::Color(c.r, c.g, c.b));
-            m_window.draw(s.shape);
-
-            Vec2 velPoint;
-            double vLength = t.v.length();
-            if (vLength == 0)
-            {
-                velPoint = Vec2(t.p.x + s.shape.getRadius(), t.p.y);
-                continue;
-            }
-            else
-            {
-                velPoint = t.p + t.v.normalize() * s.shape.getRadius();
-            }
-
-            drawLine(t.p, velPoint, sf::Color(255, 255, 255));
-        }
-
         // draw robot sensors
         if (m_sensors)
         {
-            float sensorRadius = 2;
+            float gridSensorRadius = 2;
+
             for (auto robot : m_sim->getWorld()->getEntities("robot"))
             {
                 if (!robot.hasComponent<CSensorArray>()) { continue; }
                 auto & sensors = robot.getComponent<CSensorArray>();
                 auto & c = robot.getComponent<CColor>();
 
+                for (auto sensor : sensors.fancyPuckSensors)
+                {
+                    sf::CircleShape c1Shape((float)sensor->c1Radius(), 132);
+                    sf::CircleShape c2Shape((float)sensor->c2Radius(), 132);
+                    sf::CircleShape c3Shape((float)sensor->c3Radius(), 132);
+
+                    c1Shape.setOrigin((float)sensor->c1Radius(), (float)sensor->c1Radius());
+                    Vec2 pos1 = sensor->getC1Position();
+                    c1Shape.setPosition((float)pos1.x, (float)pos1.y);
+
+                    c2Shape.setOrigin((float)sensor->c2Radius(), (float)sensor->c2Radius());
+                    Vec2 pos2 = sensor->getC2Position();
+                    c2Shape.setPosition((float)pos2.x, (float)pos2.y);
+
+                    c3Shape.setOrigin((float)sensor->c3Radius(), (float)sensor->c3Radius());
+                    Vec2 pos3 = sensor->getC3Position();
+                    c3Shape.setPosition((float)pos3.x, (float)pos3.y);
+
+                    c1Shape.setOutlineThickness(1);
+                    c2Shape.setOutlineThickness(1);
+                    c3Shape.setOutlineThickness(1);
+                    /*
+                    double reading = sensor->getReading(m_sim->getWorld());
+                    if (reading > 0) { 
+                        c1Shape.setOutlineThickness(2);
+                        c2Shape.setOutlineThickness(2);
+                        c3Shape.setOutlineThickness(2);
+                        //c1Shape.setFillColor(sf::Color(255, 255, 255, 80)); 
+                    }
+                    else { 
+                        //c1Shape.setFillColor(sf::Color(255, 0, 0, 80)); 
+                    }
+                    */
+                    c1Shape.setFillColor(sf::Color::Transparent); 
+                    c2Shape.setFillColor(sf::Color::Transparent); 
+                    c3Shape.setFillColor(sf::Color::Transparent); 
+                    m_window.draw(c1Shape);
+                    m_window.draw(c2Shape);
+                    m_window.draw(c3Shape);
+                }
+
                 for (auto & sensor : sensors.gridSensors)
                 {
-                    sf::CircleShape sensorShape(sensorRadius, 32);
-                    sensorShape.setOrigin(sensorRadius, sensorRadius);
+                    sf::CircleShape sensorShape(gridSensorRadius, 32);
+                    sensorShape.setOrigin(gridSensorRadius, gridSensorRadius);
                     Vec2 pos = sensor->getPosition();
                     sensorShape.setPosition((float)pos.x, (float)pos.y);
                     sensorShape.setFillColor(sf::Color::White);
@@ -388,7 +373,7 @@ class GUI
 
                 for (auto sensor : sensors.puckSensors)
                 {
-                    sf::CircleShape sensorShape((float)sensor->radius(), 32);
+                    sf::CircleShape sensorShape((float)sensor->radius(), 132);
                     sensorShape.setOrigin((float)sensor->radius(), (float)sensor->radius());
                     Vec2 pos = sensor->getPosition();
                     sensorShape.setPosition((float)pos.x, (float)pos.y);
@@ -397,8 +382,60 @@ class GUI
                     else { sensorShape.setFillColor(sf::Color(c.r, c.g, c.b, 80)); }
                     m_window.draw(sensorShape);
                 }
-
             }
+        }
+
+        // draw robot plows
+        for (auto e : m_sim->getWorld()->getEntities())
+        {
+            if (!e.hasComponent<CPlowBody>()) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & pb = e.getComponent<CPlowBody>();
+            auto & c = e.getComponent<CColor>();
+            auto & steer = e.getComponent<CSteer>();
+    
+            pb.shape.setPosition((float)t.p.x, (float)t.p.y);
+            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
+            if (steer.slowedCount > 0) {
+                pb.shape.setFillColor(sf::Color(255, 0, 0));                
+            } else {
+                pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));                
+            }
+            m_window.draw(pb.shape);
+
+
+Vec2 prow(t.p.x + pb.length * cos(steer.angle + pb.offsetAngle),
+          t.p.y + pb.length * sin(steer.angle + pb.offsetAngle));
+drawLine(t.p, prow, sf::Color(255, 255, 255));
+        }
+
+        // draw circles
+        for (auto e : m_sim->getWorld()->getEntities())
+        {
+            if (!e.hasComponent<CCircleShape>()) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & s = e.getComponent<CCircleShape>();
+            auto & c = e.getComponent<CColor>();
+
+            s.shape.setPosition((float)t.p.x, (float)t.p.y);
+            s.shape.setFillColor(sf::Color(c.r, c.g, c.b, c.a));
+            m_window.draw(s.shape);
+
+            Vec2 velPoint;
+            double vLength = t.v.length();
+            if (vLength == 0)
+            {
+                velPoint = Vec2(t.p.x + s.shape.getRadius(), t.p.y);
+                continue;
+            }
+            else
+            {
+                velPoint = t.p + t.v.normalize() * s.shape.getRadius();
+            }
+
+            drawLine(t.p, velPoint, sf::Color(255, 255, 255));
         }
 
         // Draw other robot-specific "decorations".
@@ -562,10 +599,10 @@ public:
         }
     } 
 
-    void setLeftArrowCallback(callback_function pFunc) {
-        m_leftArrowCallback = pFunc;
+    void setUpArrowCallback(callback_function pFunc) {
+        m_upArrowCallback = pFunc;
     }   
-    void setRightArrowCallback(callback_function pFunc) {
-        m_rightArrowCallback = pFunc;
+    void setDownArrowCallback(callback_function pFunc) {
+        m_downArrowCallback = pFunc;
     }   
 };
