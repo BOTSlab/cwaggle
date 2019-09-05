@@ -20,12 +20,10 @@ class GUI
     sf::Clock           m_clock;
     sf::Vector2f        m_mousePos;
     Entity              m_selected;
-    Entity              m_shooting;
-    Entity              m_selectedLine;
-    bool                m_selectedLineStart = false;
     bool                m_debug = false;
     bool                m_sensors = false;
     std::string         m_status = "";
+    bool                m_leftMouseDown = false;
     
     //std::vector<sf::RectangleShape> m_gridRectangles;
 
@@ -157,37 +155,28 @@ class GUI
             {
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {
+                    m_leftMouseDown = true;
+                }
+
+                if (event.mouseButton.button == sf::Mouse::Right)
+                {
                     for (auto e : m_sim->getWorld()->getEntities())
                     {
                         Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
                         if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
                         {
-                            m_selected = e;
+                            // Toggle selection.
+                            if (m_selected && m_selected.id() == e.id())
+                                m_selected = Entity();
+                            else
+                                m_selected = e;
                             break;
                         }
                     }
 
-                    for (auto e: m_sim->getWorld()->getEntities("line"))
-                    {
-                        Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
-                        auto & line = e.getComponent<CLineBody>();
-
-                        if (mPos.dist(line.s) < line.r)
-                        {
-                            m_selectedLine = e;
-                            m_selectedLineStart = true;
-                            break;
-                        }
-
-                        if (mPos.dist(line.e) < line.r)
-                        {
-                            m_selectedLine = e;
-                            m_selectedLineStart = false;
-                            break;
-                        }
-                    }
                 }
 
+                /*
                 if (event.mouseButton.button == sf::Mouse::Right)
                 {
                     for (auto & e : m_sim->getWorld()->getEntities())
@@ -195,62 +184,44 @@ class GUI
                         Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
                         if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
                         {
-                            m_shooting = e;
+                            if (e.hasComponent<CSteer>()) {
+                                auto & steer = e.getComponent<CSteer>();
+                                steer.frozen = !steer.frozen;
+                            }
                             break;
                         }
                     }
                 }
+                */
             }
 
             if (event.type == sf::Event::MouseButtonReleased)
             {
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {
-                    m_selected = Entity();
-                    m_selectedLine = Entity();
+                    m_leftMouseDown = false;
                 }
 
-                if (event.mouseButton.button == sf::Mouse::Right)
-                {
-                    if (m_shooting != Entity())
-                    {
-                        auto & t = m_shooting.getComponent<CTransform>();
-                        t.v.x = (t.p.x - m_mousePos.x) / 10.0f;
-                        t.v.y = (t.p.y - m_mousePos.y) / 10.0f;
-                        m_shooting = Entity();
-                    }
-                }
             }
 
-            if (event.type == sf::Event::MouseMoved)
+            if (event.type == sf::Event::MouseMoved && m_leftMouseDown)
             {
                 m_mousePos = sf::Vector2f((float)event.mouseMove.x, (float)event.mouseMove.y);
+
+                for (auto e : m_sim->getWorld()->getEntities())
+                {
+                    Vec2 mPos((double)event.mouseMove.x, (double)event.mouseMove.y);
+                    if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
+                    {
+                        auto & t = e.getComponent<CTransform>();
+                        Vec2 diff(m_mousePos.x - t.p.x, m_mousePos.y - t.p.y);
+                        t.p += diff;
+                    }
+                }
+
             }
         }
 
-
-        if (m_selected != Entity())
-        {
-            auto & t = m_selected.getComponent<CTransform>();
-            Vec2 diff(m_mousePos.x - t.p.x, m_mousePos.y - t.p.y);
-            //diff /= 10;
-            //t.v = diff;
-            t.p += diff;
-        }
-
-        if (m_selectedLine != Entity())
-        {
-            if (m_selectedLineStart)
-            {
-                m_selectedLine.getComponent<CLineBody>().s.x = m_mousePos.x;
-                m_selectedLine.getComponent<CLineBody>().s.y = m_mousePos.y;
-            }
-            else
-            {
-                m_selectedLine.getComponent<CLineBody>().e.x = m_mousePos.x;
-                m_selectedLine.getComponent<CLineBody>().e.y = m_mousePos.y;
-            }
-        }
     }
 
 
@@ -292,49 +263,33 @@ class GUI
 
             for (auto robot : m_sim->getWorld()->getEntities("robot"))
             {
+                if (!m_selected || robot.id() != m_selected.id()) { continue; }
+
                 if (!robot.hasComponent<CSensorArray>()) { continue; }
                 auto & sensors = robot.getComponent<CSensorArray>();
                 auto & c = robot.getComponent<CColor>();
 
-                for (auto sensor : sensors.fancyPuckSensors)
+                for (auto sensor : sensors.fancySensors)
                 {
-                    sf::CircleShape c1Shape((float)sensor->c1Radius(), 132);
-                    sf::CircleShape c2Shape((float)sensor->c2Radius(), 132);
-                    sf::CircleShape c3Shape((float)sensor->c3Radius(), 132);
+                    for (int i=0; i<sensor->getNumberOfCircles(); i++) {
+                        sf::CircleShape cShape((float)sensor->getCircleRadius(i), 132);
 
-                    c1Shape.setOrigin((float)sensor->c1Radius(), (float)sensor->c1Radius());
-                    Vec2 pos1 = sensor->getC1Position();
-                    c1Shape.setPosition((float)pos1.x, (float)pos1.y);
+                        cShape.setOrigin((float)sensor->getCircleRadius(i), (float)sensor->getCircleRadius(i));
+                        Vec2 pos = sensor->getCirclePosition(i);
+                        cShape.setPosition((float)pos.x, (float)pos.y);
 
-                    c2Shape.setOrigin((float)sensor->c2Radius(), (float)sensor->c2Radius());
-                    Vec2 pos2 = sensor->getC2Position();
-                    c2Shape.setPosition((float)pos2.x, (float)pos2.y);
-
-                    c3Shape.setOrigin((float)sensor->c3Radius(), (float)sensor->c3Radius());
-                    Vec2 pos3 = sensor->getC3Position();
-                    c3Shape.setPosition((float)pos3.x, (float)pos3.y);
-
-                    c1Shape.setOutlineThickness(1);
-                    c2Shape.setOutlineThickness(1);
-                    c3Shape.setOutlineThickness(1);
-                    /*
-                    double reading = sensor->getReading(m_sim->getWorld());
-                    if (reading > 0) { 
-                        c1Shape.setOutlineThickness(2);
-                        c2Shape.setOutlineThickness(2);
-                        c3Shape.setOutlineThickness(2);
-                        //c1Shape.setFillColor(sf::Color(255, 255, 255, 80)); 
+                        cShape.setOutlineThickness(1);
+                        /*
+                        double reading = sensor->getReading(m_sim->getWorld());
+                        if (reading > 0) { 
+                            c1Shape.setFillColor(sf::Color(255, 255, 255, 80)); 
+                        } else { 
+                            c1Shape.setFillColor(sf::Color(255, 0, 0, 80)); 
+                        }
+                        */                    
+                        cShape.setFillColor(sf::Color::Transparent); 
+                        m_window.draw(cShape);
                     }
-                    else { 
-                        //c1Shape.setFillColor(sf::Color(255, 0, 0, 80)); 
-                    }
-                    */
-                    c1Shape.setFillColor(sf::Color::Transparent); 
-                    c2Shape.setFillColor(sf::Color::Transparent); 
-                    c3Shape.setFillColor(sf::Color::Transparent); 
-                    m_window.draw(c1Shape);
-                    m_window.draw(c2Shape);
-                    m_window.draw(c3Shape);
                 }
 
                 for (auto & sensor : sensors.gridSensors)
@@ -404,10 +359,10 @@ class GUI
             }
             m_window.draw(pb.shape);
 
-
-Vec2 prow(t.p.x + pb.length * cos(steer.angle + pb.offsetAngle),
-          t.p.y + pb.length * sin(steer.angle + pb.offsetAngle));
-drawLine(t.p, prow, sf::Color(255, 255, 255));
+            // Draw a line along the prow.
+            Vec2 prow(t.p.x + pb.length * cos(steer.angle + pb.offsetAngle),
+                      t.p.y + pb.length * sin(steer.angle + pb.offsetAngle));
+            drawLine(t.p, prow, sf::Color(255, 255, 255));
         }
 
         // draw circles
@@ -421,6 +376,13 @@ drawLine(t.p, prow, sf::Color(255, 255, 255));
 
             s.shape.setPosition((float)t.p.x, (float)t.p.y);
             s.shape.setFillColor(sf::Color(c.r, c.g, c.b, c.a));
+
+            if (e.hasComponent<CSteer>()) {
+                auto & steer = e.getComponent<CSteer>();
+                if (steer.frozen)
+                    s.shape.setFillColor(sf::Color(127, 127, 127, 127));
+            }
+
             m_window.draw(s.shape);
 
             Vec2 velPoint;
@@ -500,11 +462,6 @@ drawLine(t.p, prow, sf::Color(255, 255, 255));
             m_window.draw(text);
         }
         
-        if (m_shooting != Entity())
-        {
-            drawLine(m_shooting.getComponent<CTransform>().p, Vec2(m_mousePos.x, m_mousePos.y), sf::Color::Red);
-        }
-
         // draw information
         /*
         std::stringstream ss;
