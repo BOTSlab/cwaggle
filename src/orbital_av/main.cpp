@@ -11,8 +11,8 @@
 #include "MyEval.hpp"
 #include "MyExperiment.hpp"
 
+/*
 // Pagmo-specific
-
 #include <pagmo/algorithm.hpp>
 #include <pagmo/algorithms/sade.hpp>
 #include <pagmo/archipelago.hpp>
@@ -74,17 +74,18 @@ void runGA() {
                   << isl.get_population().champion_f()[0] << '\n';
     }
 }
+*/
 
 int main(int argc, char ** argv)
 {   
    if (argc != 1 && argc != 5) {      
-      cerr << "Usage\n\t[GA MODE] cwaggle_orbital_av" << endl;
-      cerr << "OR\n\t[MANUAL MODE] cwaggle_orbital_av CONFIG_FILE PARAMETERS_FOR_RUN (3)" << endl;
+      std::cerr << "Usage\n\t[GA MODE] cwaggle_orbital_av" << std::endl;
+      std::cerr << "OR\n\t[MANUAL MODE] cwaggle_orbital_av CONFIG_FILE PARAMETERS_FOR_RUN (3)" << std::endl;
       return -1;
    }
 
    if (argc == 1) {
-      runGA();
+ //     runGA();
    } else if (argc == 5) {
       // Manual run with parameters specified.
       std::string configFile = argv[1];
@@ -94,9 +95,9 @@ int main(int argc, char ** argv)
       int puckVariant = atoi(argv[2]);
       int thresholdVariant = atoi(argv[3]);
       int defaultVariant = atoi(argv[4]);
-      cerr << "puckVariant: " << puckVariant << endl;
-      cerr << "thresholdVariant: " << thresholdVariant << endl;
-      cerr << "defaultVariant: " << defaultVariant << endl;
+      std::cerr << "puckVariant: " << puckVariant << std::endl;
+      std::cerr << "thresholdVariant: " << thresholdVariant << std::endl;
+      std::cerr << "defaultVariant: " << defaultVariant << std::endl;
       MyExperiments::runExperiment(config, puckVariant, thresholdVariant, defaultVariant);
    }
 

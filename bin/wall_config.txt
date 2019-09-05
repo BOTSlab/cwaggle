@@ -1,0 +1,13 @@
+numRobots      50
+robotRadius    5
+senseRadius	   10
+gui            1
+numPucks       250
+puckRadius     7
+simTimeStep    1
+renderSkip     10
+maxTimeSteps   10000000
+writePlotSkip  100
+plotFilenameBase   /tmp/wall
+numTrials		10
+worldName		wall

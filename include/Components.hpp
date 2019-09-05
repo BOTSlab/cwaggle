@@ -49,7 +49,7 @@ public:
 
 class GridSensor;
 class PuckSensor;
-class FancyPuckSensor;
+class FancySensor;
 class ObstacleSensor;
 class RobotSensor;
 class CSensorArray
@@ -58,7 +58,7 @@ public:
     std::vector<std::shared_ptr<GridSensor>>     gridSensors;
     std::vector<std::shared_ptr<GridSensor>>     oppGridSensors;
     std::vector<std::shared_ptr<PuckSensor>>     puckSensors;
-    std::vector<std::shared_ptr<FancyPuckSensor>>    fancyPuckSensors;
+    std::vector<std::shared_ptr<FancySensor>>    fancySensors;
     std::vector<std::shared_ptr<ObstacleSensor>> obstacleSensors;
     std::vector<std::shared_ptr<RobotSensor>>    robotSensors;
     CSensorArray() {}
@@ -92,6 +92,7 @@ public:
     double angle = 0;
     double speed = 0;
     int slowedCount = 0;
+    bool frozen = false;
     CSteer() {}
 };
 

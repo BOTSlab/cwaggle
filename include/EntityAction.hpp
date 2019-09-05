@@ -25,8 +25,18 @@ public:
         {
             e.addComponent<CSteer>();
         }
+        auto & steer = e.getComponent<CSteer>();
 
-        e.getComponent<CSteer>().angle += m_angularSpeed * timeStep;
-        e.getComponent<CSteer>().speed  = m_speed;
+        if (steer.frozen) {
+            steer.speed = 0;
+            return;
+        }
+
+        if (steer.slowedCount > 0)
+            steer.angle += 0.1 * m_angularSpeed * timeStep;
+        else
+            steer.angle += m_angularSpeed * timeStep;
+
+        steer.speed  = m_speed;
     }
 };

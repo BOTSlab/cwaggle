@@ -271,23 +271,24 @@ class GUI
 
                 for (auto sensor : sensors.fancySensors)
                 {
+                    double reading = sensor->getReading(m_sim->getWorld());
                     for (int i=0; i<sensor->getNumberOfCircles(); i++) {
+
                         sf::CircleShape cShape((float)sensor->getCircleRadius(i), 132);
+                        if (sensor->m_typeName == "red_puck")
+                            cShape.setFillColor(sf::Color(255, 0, 0, 80)); 
+                        if (sensor->m_typeName == "robot")
+                            cShape.setFillColor(sf::Color(0, 0, 255, 80)); 
 
                         cShape.setOrigin((float)sensor->getCircleRadius(i), (float)sensor->getCircleRadius(i));
                         Vec2 pos = sensor->getCirclePosition(i);
                         cShape.setPosition((float)pos.x, (float)pos.y);
 
-                        cShape.setOutlineThickness(1);
-                        /*
-                        double reading = sensor->getReading(m_sim->getWorld());
                         if (reading > 0) { 
-                            c1Shape.setFillColor(sf::Color(255, 255, 255, 80)); 
+                            cShape.setOutlineThickness(1);
                         } else { 
-                            c1Shape.setFillColor(sf::Color(255, 0, 0, 80)); 
+                            cShape.setOutlineThickness(0);
                         }
-                        */                    
-                        cShape.setFillColor(sf::Color::Transparent); 
                         m_window.draw(cShape);
                     }
                 }

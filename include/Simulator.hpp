@@ -10,6 +10,8 @@
 #include "World.hpp"
 #include "Components.hpp"
 
+#define SLOWED_ROBOT_COUNT 150
+
 struct CollisionData
 {
     CTransform * t1;
@@ -66,11 +68,21 @@ class Simulator
         {
             auto & t = e.getComponent<CTransform>();
 
+assert(!(isnan(t.p.x) || isnan(t.p.y)));
+
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
             if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.a = t.v * -m_deceleration;
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.p += t.v * m_timeStep;
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.v += t.a * m_timeStep;
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.moved = fabs(t.v.x) > 0 || fabs(t.v.y) > 0;
+assert(!(isnan(t.v.x) || isnan(t.v.y)));
+
+assert(!(isnan(t.p.x) || isnan(t.p.y)));
         }
     }
 
@@ -112,6 +124,8 @@ class Simulator
             auto & t1 = *(tIt + e1.id());
             auto & b1 = *(bIt + e1.id());
 
+assert(!(isnan(t1.p.x) || isnan(t1.p.y)));
+
             // step 1: check collisions of all circles against all lines
             for (auto & e : m_world->getEntities("line"))
             {
@@ -132,13 +146,23 @@ class Simulator
                 auto & pb = e.getComponent<CPlowBody>();
                 auto & steer = e.getComponent<CSteer>();
 
+assert(!(isnan(t.p.x) || isnan(t.p.y)));
+
                 // We create (but do not store) a CLineBody object used to check
                 // for collision with the current circle (b1).
                 double xProw = t.p.x + pb.length * cos(steer.angle + pb.offsetAngle);
                 double yProw = t.p.y + pb.length * sin(steer.angle + pb.offsetAngle);
                 CLineBody wedgeLineBody(Vec2(t.p.x, t.p.y), Vec2(xProw, yProw), pb.width/2.0);
 
-                handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
+                bool collided = handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
+
+                // If this circlebody belongs to a robot, then slow both of them
+                if (collided && e1.hasComponent<CPlowBody>()) {
+                    auto & steer1 = e1.getComponent<CSteer>();
+                    auto & steer = e.getComponent<CSteer>();
+                    steer1.slowedCount = SLOWED_ROBOT_COUNT;
+                    steer.slowedCount = SLOWED_ROBOT_COUNT;
+                }
             }
             
             // if this circle hasn't moved, we don't need to check collisions for it
@@ -159,13 +183,17 @@ class Simulator
                 double dist = t1.p.dist(t2.p);
                 double overlap = (b1.r + b2.r) - dist;
 
-                // AV: To prevent division by zero in the loop below in case the circles are coincident.                
-                if (dist == 0)
-                    dist = 0.1;
-
                 // circles overlap if the overlap is positive
                 if (overlap > m_overlapThreshold)
                 {
+                    if (dist == 0) {
+                        // AV: Circles are coincident.  If unchecked, this leads to division by zero below.  
+                        // Arbitrarily perturb body 1 by plus-or-minus 1 in x and y. 
+                        t1.p.x += 1 - (rand() % 3);
+                        t1.p.y += 1 - (rand() % 3);
+                        continue;
+                    }
+
                     // record that a collision took place between these two objects
                     m_collisions.push_back({ &t1, &t2, &b1, &b2 });
 
@@ -175,8 +203,18 @@ class Simulator
                     Vec2 delta2 = (t1.p - t2.p) / dist * overlap * (b1.m / (b1.m + b2.m));
 
                     // apply the static collision resolution and record collision
-                    t1.p += delta1; b1.collided = true;
-                    t2.p -= delta2; b2.collided = true;
+                    t1.p += delta1; 
+                    t2.p -= delta2;
+                    b1.collided = true;
+                    b2.collided = true;
+
+                    // If both circlebodys belongs to robots, then slow both of them
+                    if (e1.hasComponent<CPlowBody>() && e2.hasComponent<CPlowBody>()) {
+                        auto & steer1 = e1.getComponent<CSteer>();
+                        auto & steer2 = e2.getComponent<CSteer>();
+                        steer1.slowedCount = SLOWED_ROBOT_COUNT;
+                        steer2.slowedCount = SLOWED_ROBOT_COUNT;
+                    }
                 }
             }
             // wraparound behavior
@@ -204,7 +242,7 @@ class Simulator
             if (yProw > m_world->height()) {t1.p.y -= yProw - m_world->height(); b1.collided = true; plowBorderCollision = true; }
             // Special slow down for plow/border collisions.
             if (plowBorderCollision) {
-                steer.slowedCount = 150;
+                steer.slowedCount = SLOWED_ROBOT_COUNT;
             }
 
         }
@@ -217,14 +255,6 @@ class Simulator
             auto b1 = collision.b1;
             auto b2 = collision.b2;
 
-            // AV: If both are robots, then slow them down.
-            /*
-            if (b1->slowAfterCollision && b2->slowAfterCollision) {
-                b1->slowed = true;
-                b2->slowed = true;
-            }
-            */
-
             // normal between the circles
             double dist = t1->p.dist(t2->p);
             double nx = (t2->p.x - t1->p.x) / dist;
@@ -235,6 +265,7 @@ class Simulator
             double kx = (t1->v.x - t2->v.x);
             double ky = (t1->v.y - t2->v.y);
             double p = 2.0f * (nx*kx + ny * ky) / (b1->m + b2->m);
+
             t1->v.x -= p * b2->m * nx;
             t1->v.y -= p * b2->m * ny;
             t2->v.x += p * b1->m * nx;
@@ -248,7 +279,7 @@ class Simulator
 
     // Handles the collision between CCircleBody b1 at position/velocity t1 with the given CLineBody.
     // If treatAsCone is true then the CLineBody is treated as a cone with a "fat" and a "thin" end.
-    void handleCollisionWithLineBody(CCircleBody &b1, CTransform &t1, CLineBody &lineBody, 
+    bool handleCollisionWithLineBody(CCircleBody &b1, CTransform &t1, CLineBody &lineBody, 
                                      bool treatAsCone) {
         double lineX1 = lineBody.e.x - lineBody.s.x;
         double lineY1 = lineBody.e.y - lineBody.s.y;
@@ -291,7 +322,11 @@ class Simulator
             t1.p.x += overlap * (t1.p.x - m_fakeTransforms.back().p.x) / distance;
             t1.p.y += overlap * (t1.p.y - m_fakeTransforms.back().p.y) / distance;
             b1.collided = true;
+
+            return true;
         }
+
+        return false;
     }
 
     void appendTo(std::vector<Entity> & src, std::vector<Entity> & dest)

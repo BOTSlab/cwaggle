@@ -114,44 +114,152 @@ double constrainAngle(double x){
     return x - M_PI;
 }
 
-// A fancy-shaped puck sensor.  Considering the sets of points within circles C1 and C2.  The shape
-// is C1 - C2 (set difference operation).  Not inheriting from Sensor here because that class assumes
+// Used by FancySensor below.  Represents a circle that a target object should either be within or without.
+class SensingCircle {
+public:
+    double m_angle = 0;
+    double m_distance = 0;
+    double m_radius = 0;
+    bool m_within = true;
+
+    SensingCircle(double a, double d, double r, bool within) 
+        : m_angle(a)
+        , m_distance(d)
+        , m_radius(r)
+        , m_within(within)
+    { }  
+};
+
+// A fancy-shaped sensor.  Considering the sets of points within circles C1 and C2.  The shape
+// is C1 \cap C2 (set intersection operation).  Not inheriting from Sensor here because that class assumes
 // a single circle-shaped sensing area, whereas here we need two circles to describe the shape.
-class FancyPuckSensor
+class FancySensor
 {
 protected:
 
     size_t m_ownerID;       // entity that owns this sensor
+public:
     std::string m_typeName;
+    std::string m_sideName;
+protected:
+    std::vector<SensingCircle> m_circles;
+    bool m_mustTouchLeft = false;
+    bool m_mustTouchRight = false;
+
+public:
+    FancySensor() {}
+    FancySensor(size_t ownerID, std::string typeName, std::string sideName,
+                std::vector<SensingCircle> inCircles, bool mustTouchLeft, bool mustTouchRight) 
+        : m_ownerID(ownerID)
+        , m_typeName(typeName)
+        , m_sideName(sideName)
+        , m_circles(inCircles)
+        , m_mustTouchLeft(mustTouchLeft)
+        , m_mustTouchRight(mustTouchRight)
+    { }
+
+    inline int getNumberOfCircles()
+    {
+        return m_circles.size();
+    }
+
+    inline double getCircleRadius(int index)
+    {
+        return m_circles[index].m_radius;
+    }
+
+    inline Vec2 getCirclePosition(int index)
+    {
+        const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
+        double sumAngle = Entity(m_ownerID).getComponent<CSteer>().angle + m_circles[index].m_angle;
+        return pos + Vec2(m_circles[index].m_distance * cos(sumAngle), m_circles[index].m_distance * sin(sumAngle));
+    }
+
+    inline double getReading(std::shared_ptr<World> world)
+    {
+        double sum = 0;
+
+        std::vector<Vec2> posVector;
+        for (int i=0; i<m_circles.size(); i++)
+            posVector.push_back(getCirclePosition(i));
+
+        // Position and angle of robot.  Needed only if m_mustBeLeft || m_mustBeRight.
+        const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
+        double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
+
+        for (auto e : world->getEntities(m_typeName))
+        {
+            if (e.id() == m_ownerID) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & b = e.getComponent<CCircleBody>();
+
+            // Go through all sensing circles and determine whether the current position passes
+            // the test of being within/without that circle (according to the circle's m_within).
+            // Note that for testing to be without a circle, we test against a circle whose radius 
+            // is reduced by one diameter of the sensed object.
+            bool objectSensed = true;
+            for (int i=0; i<m_circles.size(); i++) {
+                SensingCircle c = m_circles[i];
+
+                if ((c.m_within && t.p.distSq(posVector[i]) > (c.m_radius + b.r)*(c.m_radius + b.r))
+                    ||
+                    (!c.m_within && t.p.distSq(posVector[i]) < (c.m_radius - b.r)*(c.m_radius - b.r)))
+                {
+                    objectSensed = false;
+                }
+            }
+
+            if (m_mustTouchLeft || m_mustTouchRight) {
+                // Y-coordinate w.r.t. robot ref. frame
+                double y = -sin(theta) * (t.p.x - pos.x) + cos(theta) * (t.p.y - pos.y);
+                if (m_mustTouchLeft && y - b.r > 0)
+                    objectSensed = false;
+                if (m_mustTouchRight && y + b.r < 0)
+                    objectSensed = false;
+            }
+
+            if (objectSensed)
+            {
+                sum += 1.0;
+                //std::cout << t.p.x << "_" << t.p.y << std::endl;
+                //e.addComponent<CColor>(0, rand()%255, 0, 255);
+            }
+        }
+        return sum;
+    }
+};
+
+/*class FancySensor
+{
+protected:
+
+    size_t m_ownerID;       // entity that owns this sensor
     double m_c1_angle = 0;
     double m_c1_distance = 0;
     double m_c1_radius;
     double m_c2_angle = 0;
     double m_c2_distance = 0;
     double m_c2_radius = 0;
-    double m_c3_angle = 0;
-    double m_c3_distance = 0;
-    double m_c3_radius = 0;
+    bool m_differenceMode = false;
 public:
-    bool m_intersectionMode = false;
+    std::string m_typeName;
+    std::string m_sideName;
 
-    FancyPuckSensor() {}
-    FancyPuckSensor(size_t ownerID, std::string typeName, double angle1, double distance1, double radius1, 
-                    double angle2, double distance2, double radius2,
-                    double angle3, double distance3, double radius3,
-                    bool intersectionMode)
+    FancySensor() {}
+    FancySensor(size_t ownerID, std::string typeName, std::string sideName, 
+                    double angle1, double distance1, double radius1, 
+                    double angle2, double distance2, double radius2, bool diffMode)
         : m_ownerID(ownerID)
         , m_typeName(typeName)
+        , m_sideName(sideName)
         , m_c1_angle(angle1*3.1415926 / 180.0)
         , m_c1_distance(distance1) 
         , m_c1_radius(radius1) 
         , m_c2_angle(angle2*3.1415926 / 180.0)
         , m_c2_distance(distance2) 
         , m_c2_radius(radius2) 
-        , m_c3_angle(angle3*3.1415926 / 180.0)
-        , m_c3_distance(distance3) 
-        , m_c3_radius(radius3)
-        , m_intersectionMode(intersectionMode)
+        , m_differenceMode(diffMode) 
     { }
 
     inline Vec2 getC1Position()
@@ -168,78 +276,56 @@ public:
         return pos + Vec2(m_c2_distance * cos(sumAngle), m_c2_distance * sin(sumAngle));
     }
 
-    inline Vec2 getC3Position()
+    inline double getReading(std::shared_ptr<World> world)
     {
-        const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
-        double sumAngle = m_c3_angle + Entity(m_ownerID).getComponent<CSteer>().angle;
-        return pos + Vec2(m_c3_distance * cos(sumAngle), m_c3_distance * sin(sumAngle));
+        if (m_differenceMode)
+            return getReadingDifference(world);
+        else
+            return getReadingIntersection(world);
     }
 
-    /*
-    inline virtual double getReading(std::shared_ptr<World> world)
-    {
-        if (m_intersectionMode)
-            return getReadingIntersection(world);
-        else
-            return getReadingDifference(world);
-    }
-    */
 
     inline double getReadingDifference(std::shared_ptr<World> world)
     {
         double sum = 0;
-        //double absoluteAngle = M_PI;
-
-        // Robot's pose (x, y, theta)
-        //const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
-        //double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
-        //double x = pos.x;
-        //double y = pos.y;
 
         Vec2 pos1 = getC1Position();
         Vec2 pos2 = getC2Position();
-        Vec2 pos3 = getC3Position();
-        for (auto puck : world->getEntities(m_typeName))
+        for (auto e : world->getEntities(m_typeName))
         {
-            auto & t = puck.getComponent<CTransform>();
-            auto & b = puck.getComponent<CCircleBody>();
+            if (e.id() == m_ownerID) { continue; }
 
-            // To sense a puck it must be within C1 and C2 and outside C3'.
-            // C3' has the same radius as C3 minus the puck's diameter.
+            auto & t = e.getComponent<CTransform>();
+            auto & b = e.getComponent<CCircleBody>();
+
+            // To sense a circlebody it must be within C1 but outside C2' where
+            // C2 is a circle whose radius is smaller by one diameter than the
+            // sensed object.
             if (t.p.distSq(pos1) < (m_c1_radius + b.r)*(m_c1_radius + b.r) &&
-                t.p.distSq(pos2) < (m_c2_radius + b.r)*(m_c2_radius + b.r) &&
-                t.p.distSq(pos3) > (m_c3_radius - b.r)*(m_c3_radius - b.r))
+                t.p.distSq(pos2) > (m_c2_radius - b.r)*(m_c2_radius - b.r))
             {
                 sum += 1.0;
-
-                /*
-                // Angular width of a puck.
-                double puckAngularWidth = atan(b.r / t.p.dist(pos));
-                double angle = atan2(t.p.y - y, t.p.x - x) - theta - puckAngularWidth;
-                angle = fabs(constrainAngle(angle));
-                if (angle < absoluteAngle) {
-                    absoluteAngle = angle;
-                }
-                */
             }
         }
-        //return absoluteAngle;
         return sum;
     }
 
     inline double getReadingIntersection(std::shared_ptr<World> world)
     {
         double sum = 0;
-        Vec2 pos1 = getC1Position();
-        Vec2 pos3 = getC3Position();
-        for (auto puck : world->getEntities(m_typeName))
-        {
-            auto & t = puck.getComponent<CTransform>();
-            auto & b = puck.getComponent<CCircleBody>();
 
-            // To sense a puck the puck must be within both C1 and C2.
+        Vec2 pos1 = getC1Position();
+        Vec2 pos2 = getC2Position();
+        for (auto e : world->getEntities(m_typeName))
+        {
+            if (e.id() == m_ownerID) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & b = e.getComponent<CCircleBody>();
+
+            // To sense a circlebody it must be within C1 and C2.
             if (t.p.distSq(pos1) < (m_c1_radius + b.r)*(m_c1_radius + b.r) &&
-                t.p.distSq(pos3) < (m_c3_radius + b.r)*(m_c3_radius + b.r))
+                t.p.distSq(pos2) < (m_c2_radius + b.r)*(m_c2_radius + b.r))
             {
                 sum += 1.0;
             }
@@ -256,13 +342,8 @@ public:
     {
         return m_c2_radius;
     }
-
-    inline double c3Radius() const
-    {
-        return m_c3_radius;
-    }
 };
-
+*/
 
 
 // Detects collisions with CLineBody objects.
