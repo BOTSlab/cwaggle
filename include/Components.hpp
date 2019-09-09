@@ -50,6 +50,7 @@ public:
 class GridSensor;
 class PuckSensor;
 class FancySensor;
+class PseudoCameraSensor;
 class ObstacleSensor;
 class RobotSensor;
 class CSensorArray
@@ -59,6 +60,7 @@ public:
     std::vector<std::shared_ptr<GridSensor>>     oppGridSensors;
     std::vector<std::shared_ptr<PuckSensor>>     puckSensors;
     std::vector<std::shared_ptr<FancySensor>>    fancySensors;
+    std::vector<std::shared_ptr<PseudoCameraSensor>>    cameraSensors;
     std::vector<std::shared_ptr<ObstacleSensor>> obstacleSensors;
     std::vector<std::shared_ptr<RobotSensor>>    robotSensors;
     CSensorArray() {}

@@ -269,6 +269,25 @@ class GUI
                 auto & sensors = robot.getComponent<CSensorArray>();
                 auto & c = robot.getComponent<CColor>();
 
+                // Position and angle of robot.
+                const Vec2 & pos = robot.getComponent<CTransform>().p;
+                double theta = robot.getComponent<CSteer>().angle;
+
+                sf::Color grey(127, 127, 127);
+                sf::Color white(255, 255, 255);
+                for (auto sensor : sensors.cameraSensors)
+                {
+                    std::vector<bool> reading = sensor->getReading(m_sim->getWorld());
+                    for (int i = 0; i<reading.size(); i++) {
+                        Vec2 p1, p2;
+                        sensor->getSegmentStartEnd(i, p1, p2);
+                        if (reading[i])
+                            drawLine(p1, p2, white);
+                        else
+                            drawLine(p1, p2, grey);
+                    }
+                }
+
                 for (auto sensor : sensors.fancySensors)
                 {
                     double reading = sensor->getReading(m_sim->getWorld());

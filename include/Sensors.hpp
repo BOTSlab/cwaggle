@@ -130,9 +130,7 @@ public:
     { }  
 };
 
-// A fancy-shaped sensor.  Considering the sets of points within circles C1 and C2.  The shape
-// is C1 \cap C2 (set intersection operation).  Not inheriting from Sensor here because that class assumes
-// a single circle-shaped sensing area, whereas here we need two circles to describe the shape.
+// A fancy-shaped sensor.  Considering the sets of points within (or without) the given vector of SensingCirlces.
 class FancySensor
 {
 protected:
@@ -230,121 +228,139 @@ public:
     }
 };
 
-/*class FancySensor
+// Determine whether a circle and line segment intersection.  From:
+// https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+// E is the starting point of the segment,
+// L is the end point, 
+// C is the center of circle,
+// r is the circle's radius.
+bool checkCircleSegmentIntersection(Vec2 E, Vec2 L, Vec2 C, double r)
+{
+    Vec2 d = L - E;
+    Vec2 f = E - C;
+
+    float a = d.dot(d);
+    float b = 2 * f.dot(d);
+    float c = f.dot(f) - r * r;
+
+    float discriminant = b * b - 4 * a * c;
+    if (discriminant < 0)
+    {
+        return false;
+    }
+    else
+    {
+        // ray didn't totally miss sphere,
+        // so there is a solution to
+        // the equation.
+
+        discriminant = sqrt(discriminant);
+
+        // either solution may be on or off the ray so need to test both
+        // t1 is always the smaller value, because BOTH discriminant and
+        // a are nonnegative.
+        float t1 = (-b - discriminant) / (2 * a);
+        float t2 = (-b + discriminant) / (2 * a);
+
+        // 3x HIT cases:
+        //          -o->             --|-->  |            |  --|->
+        // Impale(t1 hit,t2 hit), Poke(t1 hit,t2>1), ExitWound(t1<0, t2 hit),
+
+        // 3x MISS cases
+        //       ->  o                     o ->              | -> |
+        // FallShort (t1>1,t2>1), Past (t1<0,t2<0), CompletelyInside(t1<0, t2>1)
+
+        if (t1 >= 0 && t1 <= 1)
+        {
+            // t1 is the intersection, and it's closer than t2
+            // (since t1 uses -b - discriminant)
+            // Impale, Poke
+            return true;
+        }
+
+        // here t1 didn't intersect so we are either started
+        // inside the sphere or completely past it
+        if (t2 >= 0 && t2 <= 1)
+        {
+            // ExitWound
+            return true;
+        }
+
+        // no intn: FallShort, Past, CompletelyInside
+        return false;
+    }
+}
+
+// Emulates a 1-d camera where each "pixel" corresponds to a line segment radiating out from the sensor.
+// Detections for this pixel are based on comparing all entites of the appropriate type 
+class PseudoCameraSensor
 {
 protected:
 
     size_t m_ownerID;       // entity that owns this sensor
-    double m_c1_angle = 0;
-    double m_c1_distance = 0;
-    double m_c1_radius;
-    double m_c2_angle = 0;
-    double m_c2_distance = 0;
-    double m_c2_radius = 0;
-    bool m_differenceMode = false;
 public:
     std::string m_typeName;
-    std::string m_sideName;
+    double m_innerRadius, m_outerRadius, m_fovAngle;
+    int m_nSegments;
+    std::vector<bool>  m_image;
 
-    FancySensor() {}
-    FancySensor(size_t ownerID, std::string typeName, std::string sideName, 
-                    double angle1, double distance1, double radius1, 
-                    double angle2, double distance2, double radius2, bool diffMode)
+public:
+    PseudoCameraSensor() {}
+    PseudoCameraSensor(size_t ownerID, std::string typeName, double innerRadius, double outerRadius, double fovAngle, int nSegments)
         : m_ownerID(ownerID)
         , m_typeName(typeName)
-        , m_sideName(sideName)
-        , m_c1_angle(angle1*3.1415926 / 180.0)
-        , m_c1_distance(distance1) 
-        , m_c1_radius(radius1) 
-        , m_c2_angle(angle2*3.1415926 / 180.0)
-        , m_c2_distance(distance2) 
-        , m_c2_radius(radius2) 
-        , m_differenceMode(diffMode) 
-    { }
+        , m_innerRadius(innerRadius)
+        , m_outerRadius(outerRadius)
+        , m_fovAngle(fovAngle)
+        , m_nSegments(nSegments)
+    { 
+        m_image.resize(m_nSegments);
+    }
 
-    inline Vec2 getC1Position()
+    inline void getSegmentStartEnd(int i, Vec2 & p1, Vec2 & p2)
     {
         const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
-        double sumAngle = m_c1_angle + Entity(m_ownerID).getComponent<CSteer>().angle;
-        return pos + Vec2(m_c1_distance * cos(sumAngle), m_c1_distance * sin(sumAngle));
+        double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
+
+        double angle = theta - m_fovAngle/2.0 + i * m_fovAngle/m_nSegments;
+        p1.x = pos.x + m_innerRadius * cos(angle);
+        p1.y = pos.y + m_innerRadius * sin(angle);
+        p2.x = pos.x + m_outerRadius * cos(angle);
+        p2.y = pos.y + m_outerRadius * sin(angle);
     }
 
-    inline Vec2 getC2Position()
+    inline std::vector<bool> getReading(std::shared_ptr<World> world)
     {
+        // Position and angle of robot.
         const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
-        double sumAngle = m_c2_angle + Entity(m_ownerID).getComponent<CSteer>().angle;
-        return pos + Vec2(m_c2_distance * cos(sumAngle), m_c2_distance * sin(sumAngle));
-    }
+        double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
 
-    inline double getReading(std::shared_ptr<World> world)
-    {
-        if (m_differenceMode)
-            return getReadingDifference(world);
-        else
-            return getReadingIntersection(world);
-    }
-
-
-    inline double getReadingDifference(std::shared_ptr<World> world)
-    {
-        double sum = 0;
-
-        Vec2 pos1 = getC1Position();
-        Vec2 pos2 = getC2Position();
-        for (auto e : world->getEntities(m_typeName))
+        for (int i=0; i<m_nSegments; i++)
         {
-            if (e.id() == m_ownerID) { continue; }
+            double angle = theta - m_fovAngle/2.0 + i * m_fovAngle/m_nSegments;
 
-            auto & t = e.getComponent<CTransform>();
-            auto & b = e.getComponent<CCircleBody>();
+            // Start and end points of line segment
+            Vec2 p1(pos.x + m_innerRadius * cos(angle), pos.y + m_innerRadius * sin(angle));
+            Vec2 p2(pos.x + m_outerRadius * cos(angle), pos.y + m_outerRadius * sin(angle));
 
-            // To sense a circlebody it must be within C1 but outside C2' where
-            // C2 is a circle whose radius is smaller by one diameter than the
-            // sensed object.
-            if (t.p.distSq(pos1) < (m_c1_radius + b.r)*(m_c1_radius + b.r) &&
-                t.p.distSq(pos2) > (m_c2_radius - b.r)*(m_c2_radius - b.r))
+            // Check against all bodies of the right type.
+            bool hit = false;
+            for (auto e : world->getEntities(m_typeName))
             {
-                sum += 1.0;
+                if (e.id() == m_ownerID) { continue; }
+                auto & t = e.getComponent<CTransform>();
+                auto & b = e.getComponent<CCircleBody>();
+                if (checkCircleSegmentIntersection(p1, p2, t.p, b.r)) {
+                    hit = true;
+                    break;
+                }
             }
+
+            m_image[i] = hit;
         }
-        return sum;
-    }
-
-    inline double getReadingIntersection(std::shared_ptr<World> world)
-    {
-        double sum = 0;
-
-        Vec2 pos1 = getC1Position();
-        Vec2 pos2 = getC2Position();
-        for (auto e : world->getEntities(m_typeName))
-        {
-            if (e.id() == m_ownerID) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & b = e.getComponent<CCircleBody>();
-
-            // To sense a circlebody it must be within C1 and C2.
-            if (t.p.distSq(pos1) < (m_c1_radius + b.r)*(m_c1_radius + b.r) &&
-                t.p.distSq(pos2) < (m_c2_radius + b.r)*(m_c2_radius + b.r))
-            {
-                sum += 1.0;
-            }
-        }
-        return sum;
-    }
-
-    inline double c1Radius() const
-    {
-        return m_c1_radius;
-    }
-
-    inline double c2Radius() const
-    {
-        return m_c2_radius;
+        return m_image;
     }
 };
-*/
-
 
 // Detects collisions with CLineBody objects.
 class ObstacleSensor : public Sensor

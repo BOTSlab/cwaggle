@@ -86,4 +86,9 @@ public:
         double l = length();
         return Vec2(x / l, y / l);
     }
+
+    inline double dot(const Vec2 & rhs) const
+    {
+        return x*rhs.x + y*rhs.y;
+    }
 };

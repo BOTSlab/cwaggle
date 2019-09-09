@@ -68,21 +68,11 @@ class Simulator
         {
             auto & t = e.getComponent<CTransform>();
 
-assert(!(isnan(t.p.x) || isnan(t.p.y)));
-
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
             if (t.v.length() < m_stoppingSpeed) { t.v = Vec2(0, 0); }
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.a = t.v * -m_deceleration;
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.p += t.v * m_timeStep;
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.v += t.a * m_timeStep;
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
             t.moved = fabs(t.v.x) > 0 || fabs(t.v.y) > 0;
-assert(!(isnan(t.v.x) || isnan(t.v.y)));
-
-assert(!(isnan(t.p.x) || isnan(t.p.y)));
         }
     }
 
@@ -124,8 +114,6 @@ assert(!(isnan(t.p.x) || isnan(t.p.y)));
             auto & t1 = *(tIt + e1.id());
             auto & b1 = *(bIt + e1.id());
 
-assert(!(isnan(t1.p.x) || isnan(t1.p.y)));
-
             // step 1: check collisions of all circles against all lines
             for (auto & e : m_world->getEntities("line"))
             {
@@ -145,8 +133,6 @@ assert(!(isnan(t1.p.x) || isnan(t1.p.y)));
                 auto & cb = e.getComponent<CCircleBody>();
                 auto & pb = e.getComponent<CPlowBody>();
                 auto & steer = e.getComponent<CSteer>();
-
-assert(!(isnan(t.p.x) || isnan(t.p.y)));
 
                 // We create (but do not store) a CLineBody object used to check
                 // for collision with the current circle (b1).

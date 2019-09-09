@@ -23,12 +23,14 @@ struct SensorReading
     double rightPucks = 0;
 
     // obstacle sensor readings
-    double leftObstacle = 0;
-    double rightObstacle = 0;
+    //double leftObstacle = 0;
+    //double rightObstacle = 0;
 
     // robot sensor readings
-    double leftRobots = 0;
-    double rightRobots = 0;
+    //double leftRobots = 0;
+    //double rightRobots = 0;
+
+    std::vector<bool> image;
 
     std::string toString()
     {
@@ -46,9 +48,14 @@ struct SensorReading
         /*
         ss << "lObst: " << leftObstacle << "\n";
         ss << "rObst: " << rightObstacle << "\n";
-        */
         ss << "lRobot: " << leftRobots << "\n";
         ss << "rRobot: " << rightRobots;
+        */
+
+        for (std::vector<bool>::const_iterator i = image.begin(); i != image.end(); ++i)
+            ss << *i << ' ';
+        ss << "\n";
+
         return ss.str();
     }
 };
@@ -72,12 +79,12 @@ namespace SensorTools
             if (sensor->angle() > 0) { reading.rightOppNest = sensor->getReading(world); }
             if (sensor->angle() == 0) { reading.midOppNest = sensor->getReading(world); }
         }
+        /*
         for (auto & sensor : sensors.obstacleSensors)
         {
             if (sensor->angle() <= 0) { reading.leftObstacle += sensor->getReading(world); }
             if (sensor->angle() > 0) { reading.rightObstacle += sensor->getReading(world); }
         }
-        /*
         for (auto & sensor : sensors.robotSensors)
         {
             if (sensor->angle() <= 0) { reading.leftRobot += sensor->getReading(world); }
@@ -89,15 +96,21 @@ namespace SensorTools
             if (sensor->angle() > 0) { reading.rightPucks += sensor->getReading(world); }
         }
         */
+
         for (auto & sensor : sensors.fancySensors) {
             if (sensor->m_typeName == "red_puck" && sensor->m_sideName == "left") 
                 reading.leftPucks += sensor->getReading(world);
             if (sensor->m_typeName == "red_puck" && sensor->m_sideName == "right") 
                 reading.rightPucks += sensor->getReading(world);
+            /*
             if (sensor->m_typeName == "robot" && sensor->m_sideName == "left") 
                 reading.leftRobots += sensor->getReading(world);
             if (sensor->m_typeName == "robot" && sensor->m_sideName == "right") 
                 reading.rightRobots += sensor->getReading(world);
+            */
+        }
+        for (auto & sensor : sensors.cameraSensors) {
+            reading.image = sensor->getReading(world);
         }
     }
 }

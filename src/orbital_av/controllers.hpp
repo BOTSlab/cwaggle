@@ -1,55 +1,86 @@
+#pragma once
+
 #include "CWaggle.h"
 #include <math.h>
 #include <random>
+#include "configs.hpp"
 
 class EntityController_OrbitalConstructionVariant : public EntityController
 {
     std::shared_ptr<World> m_world;
     Entity          m_robot;
     double          m_threshold;
-    int             m_puckVariant, m_thresholdVariant, m_defaultVariant;
-    size_t          m_controllerConfig;
+    ControllerConfig m_config;
     CVectorIndicator m_indicator;
 
     SensorReading   m_reading;
 
 public:
     EntityController_OrbitalConstructionVariant(Entity robot, std::shared_ptr<World> world, double threshold,
-                                                int puckVariant, int thresholdVariant, int defaultVariant,
-                                                size_t controllerConfig)
+                                                ControllerConfig config)
         : m_world(world)
         , m_robot(robot)
         , m_threshold(threshold)
-        , m_puckVariant(puckVariant)
-        , m_thresholdVariant(thresholdVariant)
-        , m_defaultVariant(defaultVariant)
-        , m_controllerConfig(controllerConfig)
+        , m_config(config)
         , m_indicator(3.14, 20, 255, 0, 0, 255)
     {
     }
 
-    virtual EntityAction getAction()
-    {
-        // The default indicator will be a straight-ahead white line
+    void indicateNothing() {
         m_indicator.angle = 0;
-        m_indicator.length = 60;
+        m_indicator.length = 0;
+        m_indicator.r = 0;
+        m_indicator.g = 0;
+        m_indicator.b = 0;
+        m_indicator.a = 255;
+        m_robot.addComponent<CVectorIndicator>(m_indicator);
+    }
+    void indicateLeft() {
+        m_indicator.angle = -M_PI/2.0;
+        m_indicator.length = 100;
+        m_indicator.g = 255;
+        m_robot.addComponent<CVectorIndicator>(m_indicator);
+    }
+
+    void indicateRight() {
+        m_indicator.angle = M_PI/2.0;
+        m_indicator.length = 100;
+        m_indicator.r = 255;
+        m_robot.addComponent<CVectorIndicator>(m_indicator);
+    }
+
+    void indicateSlowStraight() {
+        m_indicator.angle = 0;
+        m_indicator.length = 100;
+        m_indicator.b = 255;
+        m_robot.addComponent<CVectorIndicator>(m_indicator);
+    }
+
+    void indicateStraight() {
+        m_indicator.angle = 0;
+        m_indicator.length = 100;
         m_indicator.r = 255;
         m_indicator.g = 255;
         m_indicator.b = 255;
-        m_indicator.a = 255;
         m_robot.addComponent<CVectorIndicator>(m_indicator);
+    }
+
+
+    virtual EntityAction getAction() {
+        indicateNothing();
 
         // read the sensors and store it in m_reading
         SensorTools::ReadSensorArray(m_robot, m_world, m_reading);
 
         const double MaxAngularSpeed = 0.1;
         const double ForwardSpeed = 2;
+        const double ShallowFactor = 1.0;
+        EntityAction straight(ForwardSpeed, 0);
         EntityAction left(ForwardSpeed, -MaxAngularSpeed);
         EntityAction right(ForwardSpeed, MaxAngularSpeed);
-        EntityAction shallowLeft(ForwardSpeed, -0.3*MaxAngularSpeed);
-        EntityAction shallowRight(ForwardSpeed, 0.3*MaxAngularSpeed);
-        EntityAction slowLeft(0.25*ForwardSpeed, -MaxAngularSpeed);
-        EntityAction slowRight(0.25*ForwardSpeed, MaxAngularSpeed);
+        EntityAction shallowLeft(ForwardSpeed, -ShallowFactor*MaxAngularSpeed);
+        EntityAction shallowRight(ForwardSpeed, ShallowFactor*MaxAngularSpeed);
+        EntityAction slowSlightLeft(0.25*ForwardSpeed, -0.5*MaxAngularSpeed);
         EntityAction slowStraight(0.25*ForwardSpeed, 0);
 
         size_t type = m_robot.getComponent<CRobotType>().type;
@@ -75,49 +106,111 @@ public:
         }
 
         /*
+        bool robotLeft = m_reading.leftRobots > 0;
+        bool robotRight = m_reading.rightRobots > 0;
         if (C > 0.5) {
-            if (m_reading.leftRobots > 0)
-                // Good for avoiding oscillations between avoiding border/robots, but maybe
-                // not so good for when congestion arises at the periphery of the structure.
-                return slowRight;
+            if ((m_config.leftRobotHiVariant & ordering) && robotLeft
+                &&
+                (m_config.rightRobotHiVariant & ordering) && robotRight)
+                return slowStraight;
+            if ((m_config.leftRobotHiVariant & ordering) && robotLeft)
+                return right;
+            if ((m_config.rightRobotHiVariant & ordering) && robotRight)
+                return left;
         } else {
-            if (m_reading.rightRobots > 0)
-                return slowLeft;
+            if ((m_config.leftRobotLoVariant & ordering) && robotLeft
+                &&
+                (m_config.rightRobotLoVariant & ordering) && robotRight)
+                return slowStraight;
+            if ((m_config.leftRobotLoVariant & ordering) && robotLeft)
+                return right;
+            if ((m_config.rightRobotLoVariant & ordering) && robotRight)
+                return left;
+        }
+        if (C > 0.5) {
+            if (robotLeft) {
+                indicateRight();
+                return right;
+            }
+        } else {
+            if (robotLeft && robotRight) {
+                indicateStraight();
+                return slowStraight;
+            }
+            if (robotLeft) {
+                indicateLeft();
+                return left;
+            }
         }
         */
 
+        int n = m_reading.image.size();
+//        if (C > 0.5) {
+            // Find the biggest gap between robots in the robot-only image.
+            int longestI = 0, longestJ = -1;
+            for (int i=0; i < n; i++)
+            {
+                if (!m_reading.image[i]) {
+                    for (int j = i; !m_reading.image[j] && j < n; j++) {
+                        if (j - i > longestJ - longestI) {
+                            longestI = i;
+                            longestJ = j;
+                        }
+                    }
+                }
+            }
+
+            if (longestI != 0 || longestJ != n-1)
+            {   // There is at least one robot in view...
+                if (longestI == 0) {
+                    indicateLeft();
+                    return left;
+                } if (longestJ == n-1) {
+                    indicateRight();
+                    return right;
+                }
+
+                // Considering the centre of the gap to be the average of 
+                // its two ends, longestI and longestJ.  Turn left/right to move
+                // this point towards the centre of the image.
+                int gapCentre = (longestI + longestJ)/2;
+                int error = n/2 - gapCentre;
+                if (error > 0 && (63 & ordering)) {
+                    indicateLeft();
+                    return left;
+                } if (error < 0) {
+                    indicateRight();
+                    return right;
+                }
+                indicateSlowStraight();
+                return slowStraight;
+            }
+
+//        } else
+//        {
+//            // Only react to another robot if it is in the left field of view.
+//            for (int i=0; i < n/2; i++)
+//            {
+//                if (m_reading.image[i]) {
+//                    indicateSlowStraight();
+//                    return slowSlightLeft;
+//                }
+//            }
+//        }
         
-        bool robotRight = m_reading.rightRobots > 0;
-        bool robotLeft = m_reading.leftRobots > 0;
-
         bool pucksPerceived = m_reading.leftPucks > 0;
-
-//        if (m_reading.rightRobots > 0 && m_reading.leftRobots > 0)
-//            return slowStraight;
-
-        if (m_reading.rightRobots > 0)
-            return slowStraight;
-
-        if (m_reading.leftRobots > 0)
-            pucksPerceived = false;
-
-        if ((m_puckVariant & ordering) && pucksPerceived) {
-//            return (!robotLeft) ? left : right; 
+        if ((m_config.puckVariant & ordering) && pucksPerceived) {
             return left; 
         }
-        if (m_thresholdVariant & ordering) {
+        if (m_config.thresholdVariant & ordering) {
             if (C < m_threshold)
                 return shallowLeft;
-//                return (!robotLeft) ? shallowLeft : shallowRight;
             else
                 return shallowRight;
-//                return (!robotRight) ? shallowRight : shallowLeft;
         }
-        if (m_defaultVariant & ordering)
-//            return (!robotRight) ? right : left;
+        if (m_config.defaultVariant & ordering)
             return right;
         else
-//            return (!robotLeft) ? left : right;
             return left;
     }
 };
@@ -251,11 +344,12 @@ public:
         const double MaxAngularSpeed = 0.3;
         const double ForwardSpeed = 2;
 
-        if (m_reading.leftObstacle > 0)
-        {
-            m_previousAction = EntityAction(ForwardSpeed, MaxAngularSpeed);
-            return m_previousAction;
-        }
+        
+//        if (m_reading.leftObstacle > 0)
+//        {
+//            m_previousAction = EntityAction(ForwardSpeed, MaxAngularSpeed);
+//            return m_previousAction;
+//        }
 
         size_t type = m_robot.getComponent<CRobotType>().type;
         bool innie = type == 1;

@@ -6,6 +6,8 @@
 #include "ValueGrid.hpp"
 #include "Sensors.hpp"
 
+#include "configs.hpp"
+
 #include <sstream>
 
 namespace orbital_av_world
@@ -36,7 +38,7 @@ namespace orbital_av_world
 return true;
     }
 
-    void addRobot(std::string team, std::shared_ptr<World> world, size_t x, size_t y, std::map<std::string,double> config)
+    void addRobot(std::string team, std::shared_ptr<World> world, size_t x, size_t y, ExperimentConfig config)
     {
         size_t red, green, blue;
         size_t gridIndex, otherGridIndex;
@@ -69,17 +71,17 @@ return true;
 
         Vec2 rPos(x, y);
         robot.addComponent<CTransform>(rPos);
-        robot.addComponent<CCircleBody>(config["robotRadius"], true);
-        robot.addComponent<CCircleShape>(config["robotRadius"]);
+        robot.addComponent<CCircleBody>(config.robotRadius, true);
+        robot.addComponent<CCircleShape>(config.robotRadius);
         robot.addComponent<CColor>(red, green, blue, 255);
         //robot.addComponent<CRobotType>(robotType);
 
-        int robotRadius = (int) config["robotRadius"];
+        int robotRadius = (int) config.robotRadius;
 
         // Wedge shaped plow at the front of the robot.
-        if (config["plowLength"] > 0) {
+        if (config.plowLength > 0) {
             float plowWidth = 2*robotRadius;
-            robot.addComponent<CPlowBody>(plowWidth, config["plowLength"], 0);
+            robot.addComponent<CPlowBody>(plowWidth, config.plowLength, 0);
         }
 
         auto & sensors = robot.addComponent<CSensorArray>();
@@ -104,8 +106,8 @@ return true;
         // The puck sensor has an additional circle (C2) representing an intentionally contracted field-of-view
         // so that the robot does not react to pucks outside of its action space.
         std::vector<SensingCircle> circles;
-        circles.push_back(SensingCircle(0, config["c1Distance"], config["c1Radius"], true));
-        circles.push_back(SensingCircle(0, config["c2Distance"], config["c2Radius"], true));
+        circles.push_back(SensingCircle(0, config.c1Distance, config.c1Radius, true));
+        circles.push_back(SensingCircle(0, config.c2Distance, config.c2Radius, true));
 
         auto fancyLeftPuckSensor = std::make_shared<FancySensor>(robot, "red_puck", "left", circles, true, false);
         sensors.fancySensors.push_back(fancyLeftPuckSensor);
@@ -114,24 +116,24 @@ return true;
         // ROBOT SENSOR
         // 
 
-        // The robot sensors have additional circles (thinking of both as C3 for now) 
+        auto cameraSensor = std::make_shared<PseudoCameraSensor>(robot, "robot", 2*robotRadius, 4*robotRadius, 0.95 * M_PI, 13);
+        sensors.cameraSensors.push_back(cameraSensor);
 
-        double c3_distance = config["c3Radius"] + config["plowLength"];
+        /*
         circles.clear();
-        circles.push_back(SensingCircle(0, config["c1Distance"], config["c1Radius"], true));
-        circles.push_back(SensingCircle(M_PI/2.0, c3_distance, config["c3Radius"], false));
-        circles.push_back(SensingCircle(0, 0, config["c4Radius"], true));
+        circles.push_back(SensingCircle(0, config.c1Distance, config.c1Radius, true));
+        circles.push_back(SensingCircle(0, 0, config.c3Radius, true));
         auto fancyRightRobotSensor = std::make_shared<FancySensor>(robot, "robot", "right", circles, false, true);
         sensors.fancySensors.push_back(fancyRightRobotSensor);
 
-        circles[1].m_angle *= -1;
         auto fancyLeftRobotSensor = std::make_shared<FancySensor>(robot, "robot", "left", circles, true, false);
         sensors.fancySensors.push_back(fancyLeftRobotSensor);
+        */
     }
 
-    void addRobots(std::string team, std::shared_ptr<World> world, size_t width, size_t height, std::map<std::string,double> config)
+    void addRobots(std::string team, std::shared_ptr<World> world, size_t width, size_t height, ExperimentConfig config)
     {
-        int numRobots = (int) config["numRobots"];
+        int numRobots = (int) config.numRobots;
         for (size_t r = 0; r < numRobots; r++)
         {
             bool positionFree = false;
@@ -156,10 +158,10 @@ return true;
         puck.addComponent<CColor>(red, green, blue, 255);
     }
 
-    void addPucks(std::string name, size_t red, size_t green, size_t blue, std::shared_ptr<World> world, size_t width, size_t height, std::map<std::string,double> config)
+    void addPucks(std::string name, size_t red, size_t green, size_t blue, std::shared_ptr<World> world, size_t width, size_t height, ExperimentConfig config)
     {
-        int puckRadius = (int) config["puckRadius"];
-        for (size_t r = 0; r < config["numPucks"]; r++)
+        int puckRadius = (int) config.puckRadius;
+        for (size_t r = 0; r < config.numPucks; r++)
         {
             bool positionFree = false;
             int x, y;
@@ -174,9 +176,9 @@ return true;
         }
     }
 
-    std::shared_ptr<World> GetLGTVWorld(std::string gridFilename, std::map<std::string,double> config) //std::string gridFilename, size_t numRobots, double robotRadius, double senseRadius, size_t numPucks, double puckSize, size_t hookSensor)
+    std::shared_ptr<World> GetLGTVWorld(ExperimentConfig config)
     {
-        ValueGrid valueGrid(gridFilename);
+        ValueGrid valueGrid(config.gridFilename);
         size_t width = valueGrid.width();
         size_t height = valueGrid.height();
 

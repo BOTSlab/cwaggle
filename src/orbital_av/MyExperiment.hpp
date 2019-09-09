@@ -7,10 +7,11 @@
 
 #include "CWaggle.h"
 #include "GUI.hpp"
+
+#include "configs.hpp"
+#include "worlds.hpp"
+#include "controllers.hpp"
 #include "MyEval.hpp"
-
-//using namespace std;
-
 
 // Kludge to get the up/down arrows of the GUI to be able to modify the rendering
 // speed.
@@ -65,107 +66,10 @@ void randomizeWorld(std::default_random_engine generator, double robotRadius, do
     }
 }
 
-struct MyExperimentConfig
-{
-    // Square World Parameters
-    //size_t width        = 800;
-    //size_t height       = 800;
-    size_t gui          = 1;
-    size_t numRobots    = 20;
-    double robotRadius  = 10.0;
-
-    double plowLength   = 60.0;
-    double c1Radius     = 80.0;
-    double c1Distance   = 140.0;
-    double c2Radius     = 40.0;
-    double c2Distance   = 140.0; 
-    double c3Radius     = 1000.0;
-    double c4Radius     = 100.0;
-
-    size_t numPucks     = 0;
-    double puckRadius   = 10.0;
-
-    // Simulation Parameters
-    double simTimeStep  = 1.0;
-    double renderSteps  = 1;
-    size_t maxTimeSteps = 0;
-
-    size_t writePlotSkip    = 0;
-    std::string plotFilenameBase   = "";
-    size_t numTrials = 10;
-    std::string worldName = "";
-    std::string gridFilename = "";
-
-    size_t controllerConfig   = 0;
-
-
-    // Orbital Construction Config
-    // OrbitalConstructionConfig occ;
-
-    MyExperimentConfig() {}
-
-    void load(const std::string & filename)
-    {
-        std::ifstream fin(filename);
-        std::string token;
-        double tempVal = 0;
- 
-        while (fin.good())
-        {
-            fin >> token;
-            if (token == "numRobots")      { fin >> numRobots; }
-            else if (token == "robotRadius")    { fin >> robotRadius; }
-            else if (token == "plowLength")    { fin >> plowLength; }
-            else if (token == "c1Radius")    { fin >> c1Radius; }
-            else if (token == "c1Distance")    { fin >> c1Distance; }
-            else if (token == "c2Radius")    { fin >> c2Radius; }
-            else if (token == "c2Distance")    { fin >> c2Distance; }
-            else if (token == "c3Radius")    { fin >> c3Radius; }
-            else if (token == "c4Radius")    { fin >> c4Radius; }
-            else if (token == "gui")            { fin >> gui; }
-            else if (token == "numPucks")       { fin >> numPucks; }
-            else if (token == "puckRadius")     { fin >> puckRadius; }
-            else if (token == "simTimeStep")    { fin >> simTimeStep; }
-            else if (token == "renderSkip")     { fin >> renderSteps; }
-            else if (token == "maxTimeSteps")   { fin >> maxTimeSteps; }
-            else if (token == "writePlotSkip")  { fin >> writePlotSkip; }
-            else if (token == "plotFilenameBase")   { fin >> plotFilenameBase; }
-            else if (token == "numTrials")   { fin >> numTrials; }
-            else if (token == "worldName")   { fin >> worldName; }
-            else if (token == "gridFilename")   { fin >> gridFilename; }
-            else if (token == "controllerConfig")   { fin >> controllerConfig; }
-        }
-
-        // BAD: These don't really belong here.
-        renderStepsAdjusted = renderSteps;
-        simTimeStepAdjusted = simTimeStep;
-
-    }
-
-    std::map<std::string,double> getMap()
-    {
-        std::map<std::string,double> m;
-        m["numRobots"] = numRobots;
-        m["robotRadius"]  = robotRadius;
-        m["plowLength"]   = plowLength;
-        m["c1Radius"]     = c1Radius;
-        m["c1Distance"]   = c1Distance;
-        m["c2Radius"]     = c2Radius;
-        m["c2Distance"]   = c2Distance; 
-        m["c3Radius"]     = c3Radius;
-        m["c4Radius"]     = c4Radius;
-        m["numPucks"]     = numPucks;
-        m["puckRadius"]   = puckRadius;
-        return m;
-    }
-};
-
-
-
-
 class MyExperiment
 {
-    MyExperimentConfig          m_config;
+    ExperimentConfig            m_config;
+    ControllerConfig            m_ctrlConfig;
     int                         m_trialIndex;
 
     std::shared_ptr<GUI>        m_gui;
@@ -183,42 +87,28 @@ class MyExperiment
     std::default_random_engine  m_rng;
     bool                        m_aborted;
 
-    int             m_puckVariant, m_thresholdVariant, m_defaultVariant;
-
-
     void addRobotControllers()
     {
-//        std::uniform_real_distribution<double> uniformDist(0, 1.0);
-//        std::normal_distribution<double> normalDist(0.0,0.1);
+        for (auto e : world->getEntities("robot")) {
+            /*
+            ControllerConfig controllerConfig;
+            controllerConfig.leftRobotHiVariant = m_leftRobotHiVariant;
+            controllerConfig.rightRobotHiVariant = m_rightRobotHiVariant;
+            controllerConfig.leftRobotLoVariant = m_leftRobotLoVariant;
+            controllerConfig.rightRobotLoVariant = m_rightRobotLoVariant;
 
-        // add orbital controllers to all the robots
-        //std::cout << "Thresholds: ";
-        double threshold = 0.1;
-        for (auto e : world->getEntities("robot"))
-        {
-            // Determine robot's threshold.
-//            double threshold;
-//
-//            threshold = 1 - 0.999*exp((uniformDist(m_rng) - 1.0) / 1.25);
-//if (uniformDist(m_rng) < 0.75) {
-//            threshold = uniformDist(m_rng);
-//} else {
-//            threshold = 0.015;
-//}
-//
-//
-//            std::cout << threshold << " ";
-//            e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstruction2>(e, m_world, threshold));
-
-
-            e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstructionVariant>(e, world, threshold, m_puckVariant, m_thresholdVariant, m_defaultVariant, m_config.controllerConfig));
-
+            controllerConfig.puckVariant = m_puckVariant;
+            controllerConfig.thresholdVariant = m_thresholdVariant;
+            controllerConfig.defaultVariant = m_defaultVariant;
+            */
+            e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstructionVariant>(e, world, m_config.threshold, 
+                                                                                                      m_ctrlConfig));
         }
 
         if (m_gui) {
-            m_gui->addContour(threshold);
+            m_gui->addContour(m_config.threshold);
+            m_gui->addContour(0.5);
         }
-        //std::cout << std::endl;
     }
 
     void resetSimulator()
@@ -230,16 +120,8 @@ class MyExperiment
 
         if (world == NULL) {
             if (m_config.worldName == "lgtv") {
-                world = orbital_av_world::GetLGTVWorld(m_config.gridFilename, m_config.getMap());
-            } /*else if (m_config.worldName == "symmetric") {
-                world = orbital_av_world::GetSymmetricWorld(
-                    m_config.numRobots, m_config.robotRadius, m_config.senseRadius,
-                    m_config.numPucks, m_config.puckRadius);
-            } else if (m_config.worldName == "wall") {
-                world = orbital_av_world::GetWallWorld(
-                    m_config.numRobots, m_config.robotRadius, m_config.senseRadius,
-                    m_config.numPucks, m_config.puckRadius);
-            } */else {
+                world = orbital_av_world::GetLGTVWorld(m_config);
+            } else {
                 std::cerr << "Problem: unknown world parameter in config file\n";            
             }
         } else {
@@ -249,12 +131,10 @@ class MyExperiment
 
         m_sim = std::make_shared<Simulator>(world);
 
-        if (m_gui)
-        {
+        if (m_gui) {
             m_gui->setSim(m_sim);
         }
-        else if (m_config.gui)
-        {
+        else if (m_config.gui) {
             m_gui = std::make_shared<GUI>(m_sim, 144);
             m_gui->setDownArrowCallback(decreaseRenderSpeed);
             m_gui->setUpArrowCallback(increaseRenderSpeed);
@@ -283,25 +163,17 @@ class MyExperiment
     
 public:
 
-//    MyExperiment(const MyExperimentConfig & config, int trialIndex, int rngSeed,
-    MyExperiment(MyExperimentConfig config, int trialIndex, int rngSeed,
-        int puckVariant, int thresholdVariant, int defaultVariant)
+    MyExperiment(ExperimentConfig config, ControllerConfig ctrlConfig, int trialIndex, int rngSeed)
         : m_config(config)
+        , m_ctrlConfig(ctrlConfig)
         , m_trialIndex(trialIndex)
         , m_rng(rngSeed)
         , m_aborted(false)
-        , m_puckVariant(puckVariant)
-        , m_thresholdVariant(thresholdVariant)
-        , m_defaultVariant(defaultVariant)
     {
         if (m_config.writePlotSkip)
         {
             std::stringstream plotFilename;
             plotFilename << m_config.plotFilenameBase << ".dat";
-            //    << "_" << puckVariant
-            //    << "_" << thresholdVariant
-            //    << "_" << defaultVariant
-            //    << "_" << trialIndex << ".txt";
             m_fout = std::ofstream(plotFilename.str());
         }
 
@@ -423,7 +295,12 @@ public:
 
 namespace MyExperiments
 {
-    double runExperiment(MyExperimentConfig config, int puckVariant, int thresholdVariant, int defaultVariant) {
+    double runExperiment(ExperimentConfig config, ControllerConfig ctrlConfig) {
+        // BAD: These are declared at the top of this file and therefore don't belong to this class specifically.
+        // They are here just as a way of getting through the weirdness of defining the GUI callbacks.
+        renderStepsAdjusted = config.renderSteps;
+        simTimeStepAdjusted = config.simTimeStep;
+ 
         double avgEval = 0;
         for (int i=0; i<config.numTrials; i++) {
             //std::cout << "Trial: " << i << "\n";
@@ -433,7 +310,7 @@ namespace MyExperiments
             // run 1000 trials.
             bool aborted = true;
             for (int seedAdjustment=0; aborted; seedAdjustment += 1000) {
-                MyExperiment exp(config, i, i+seedAdjustment, puckVariant, thresholdVariant, defaultVariant);
+                MyExperiment exp(config, ctrlConfig, i, i+seedAdjustment);
                 exp.run();
                 exp.printResults();
                 aborted = exp.wasAborted();
@@ -451,8 +328,8 @@ namespace MyExperiments
 
         }
 
-        std::cout << puckVariant << "_" << thresholdVariant << "_" << defaultVariant << " "
-                  << avgEval/config.numTrials << "\n";
+        ctrlConfig.print();
+        std::cout << "\t" << avgEval/config.numTrials << "\n";
 
         return avgEval / config.numTrials;         
     }
@@ -496,17 +373,12 @@ config.numPucks = numPucks;
     }
 */        
 
-    double runWithDefaultConfig(int puckVariant, int thresholdVariant, int defaultVariant)
-    {
+    double runWithDefaultConfig(ControllerConfig ctrlConfig) {
         // Read the config file name from console if it exists
         std::string configFile = "lgtv_config.txt";
-        MyExperimentConfig config;
+        ExperimentConfig config;
         config.load(configFile);
- 
-        //cerr << "puckVariant: " << puckVariant << endl;
-        //cerr << "thresholdVariant: " << thresholdVariant << endl;
-        //cerr << "defaultVariant: " << defaultVariant << endl;
 
-        return runExperiment(config, puckVariant, thresholdVariant, defaultVariant);
+        return runExperiment(config, ctrlConfig);
     }
 };
