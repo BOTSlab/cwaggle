@@ -22,7 +22,7 @@
 #include <pagmo/types.hpp>
 using namespace pagmo;
 
-const int N_PARAMETERS = 4;
+const int N_PARAMETERS = 1;
 
 // Make sure the value is constrained to the range [0, 63]
 int constrain(double x) {
@@ -41,10 +41,7 @@ public:
         assert(x[i] >= 0 && x[i] <= 63);
       
       ControllerConfig ctrlConfig;
-      ctrlConfig.leftRobotHiVariant = constrain(x[0]);
-      ctrlConfig.rightRobotHiVariant = constrain(x[1]);
-      ctrlConfig.leftRobotLoVariant = constrain(x[2]);
-      ctrlConfig.rightRobotLoVariant = constrain(x[3]);
+      ctrlConfig.avoidVariant = constrain(x[0]);
       ctrlConfig.puckVariant = 5;
       ctrlConfig.thresholdVariant = 1;
       ctrlConfig.defaultVariant = 12;
@@ -98,34 +95,53 @@ void runGA() {
     */
 }
 
+void parameterSweep()
+{
+    ControllerConfig ctrlConfig;
+    ctrlConfig.puckVariant = 5;
+    ctrlConfig.thresholdVariant = 1;
+    ctrlConfig.defaultVariant = 12;
+    for (ctrlConfig.avoidVariant = 0; ctrlConfig.avoidVariant < 64; ctrlConfig.avoidVariant++)
+    {
+        MyExperiments::runWithDefaultConfig(ctrlConfig);
+    }
+}
+
+void runBest()
+{
+    ControllerConfig ctrlConfig;
+    ctrlConfig.puckVariant = 5;
+    ctrlConfig.thresholdVariant = 1;
+    ctrlConfig.defaultVariant = 12;
+    ctrlConfig.avoidVariant = 54;
+    MyExperiments::runWithDefaultConfig(ctrlConfig);
+}
+
+
 int main(int argc, char ** argv)
 {   
-   if (argc != 1 && argc != 9) {      
+   if (argc != 1 && argc != 6) {      
       std::cerr << "Usage\n\t[GA MODE] cwaggle_orbital_av" << std::endl;
       std::cerr << "OR\n\t[MANUAL MODE] cwaggle_orbital_av CONFIG_FILE PARAMETERS_FOR_RUN (7)" << std::endl;
       return -1;
    }
 
    if (argc == 1) {
-      runGA();
-   } else if (argc == 9) {
+      //runGA();
+      //parameterSweep();
+      runBest();
+   } else if (argc == 6) {
       // Manual run with parameters specified.
       std::string configFile = argv[1];
       ExperimentConfig config;
       config.load(configFile);
 
       ControllerConfig ctrlConfig;
-      ctrlConfig.leftRobotHiVariant = atoi(argv[2]);
-      ctrlConfig.rightRobotHiVariant = atoi(argv[3]);
-      ctrlConfig.leftRobotLoVariant = atoi(argv[4]);
-      ctrlConfig.rightRobotLoVariant = atoi(argv[5]);
-      ctrlConfig.puckVariant = atoi(argv[6]);
-      ctrlConfig.thresholdVariant = atoi(argv[7]);
-      ctrlConfig.defaultVariant = atoi(argv[8]);
-      std::cerr << "leftRobotHiVariant: " << ctrlConfig.leftRobotHiVariant<< std::endl;
-      std::cerr << "rightRobotHiVariant: " << ctrlConfig.rightRobotHiVariant<< std::endl;
-      std::cerr << "leftRobotLoVariant: " << ctrlConfig.leftRobotLoVariant<< std::endl;
-      std::cerr << "rightRobotLoVariant: " << ctrlConfig.rightRobotLoVariant<< std::endl;
+      ctrlConfig.avoidVariant = atoi(argv[2]);
+      ctrlConfig.puckVariant = atoi(argv[3]);
+      ctrlConfig.thresholdVariant = atoi(argv[4]);
+      ctrlConfig.defaultVariant = atoi(argv[5]);
+      std::cerr << "avoidVariant: " << ctrlConfig.avoidVariant << std::endl;
       std::cerr << "puckVariant: " << ctrlConfig.puckVariant << std::endl;
       std::cerr << "thresholdVariant: " << ctrlConfig.thresholdVariant << std::endl;
       std::cerr << "defaultVariant: " << ctrlConfig.defaultVariant << std::endl;

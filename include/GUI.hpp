@@ -46,6 +46,7 @@ class GUI
 
     callback_function   m_upArrowCallback;
     callback_function   m_downArrowCallback;
+    callback_function   m_spaceCallback;
 
     void init(std::shared_ptr<Simulator> sim)
     {
@@ -145,6 +146,9 @@ class GUI
                         break;
                     case sf::Keyboard::Down:
                         m_downArrowCallback();
+                        break;
+                    case sf::Keyboard::Space:
+                        m_spaceCallback();
                         break;
 
                     default: break;
@@ -581,5 +585,8 @@ public:
     }   
     void setDownArrowCallback(callback_function pFunc) {
         m_downArrowCallback = pFunc;
+    }   
+    void setSpaceCallback(callback_function pFunc) {
+        m_spaceCallback = pFunc;
     }   
 };

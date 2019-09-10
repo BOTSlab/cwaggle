@@ -12,9 +12,9 @@ puckRadius     7
 threshold      0.08
 simTimeStep    1
 renderSkip     1
-maxTimeSteps   3000
+maxTimeSteps   2000
 writePlotSkip  1
 plotFilenameBase   ../../data/off
-numTrials		10
+numTrials		50
 worldName		lgtv
 gridFilename	../../images/bar_div_4_barHeight_12_bias_0.10.png

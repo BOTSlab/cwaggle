@@ -35,7 +35,17 @@ void increaseRenderSpeed() {
     std::cout << "renderStepsAdjusted: " << renderStepsAdjusted << std::endl;
     std::cout << "simTimeStepAdjusted: " << simTimeStepAdjusted << std::endl;
 }
-
+void togglePause() {
+    if (simTimeStepAdjusted > 0) {
+        simTimeStepAdjusted = 0;
+        renderStepsAdjusted = 1;
+    } else {
+        simTimeStepAdjusted = 1;
+        renderStepsAdjusted = 1;
+    }
+    std::cout << "renderStepsAdjusted: " << renderStepsAdjusted << std::endl;
+    std::cout << "simTimeStepAdjusted: " << simTimeStepAdjusted << std::endl;
+}
 
 std::shared_ptr<World> world;
 
@@ -138,6 +148,7 @@ class MyExperiment
             m_gui = std::make_shared<GUI>(m_sim, 144);
             m_gui->setDownArrowCallback(decreaseRenderSpeed);
             m_gui->setUpArrowCallback(increaseRenderSpeed);
+            m_gui->setSpaceCallback(togglePause);
         }
 
         addRobotControllers();
@@ -333,45 +344,6 @@ namespace MyExperiments
 
         return avgEval / config.numTrials;         
     }
-
-/*
-    void MainExperiment(int argc, char ** argv)
-    {
- 
-        // Testing different variants of OC
-        int puckVariant = atoi(argv[2]);
-        int thresholdVariant = atoi(argv[3]);
-        int defaultVariant = atoi(argv[4]);
-        cerr << "puckVariant: " << puckVariant << endl;
-        cerr << "thresholdVariant: " << thresholdVariant << endl;
-        cerr << "defaultVariant: " << defaultVariant << endl;
-        //for (int puckVariant = 34; puckVariant < 64; puckVariant++)
-        //    for (int thresholdVariant = 0; thresholdVariant < 64; thresholdVariant++) {
-                int defaultVariant = 1;
-            //for (int defaultVariant = 0; defaultVariant < 64; defaultVariant++)
-
-for (int numPucks = 10; numPucks <=50; numPucks+= 10) {
-config.numPucks = numPucks;
-                runExperiment(config, puckVariant, thresholdVariant, defaultVariant);
-}
-        //    }
-
-        runExperiment(config, puckVariant, thresholdVariant, defaultVariant);
-
-        // The best for LGTV.
-        runExperiment(config, 5, 1, 12);
-
-        // Encodes the original OC algorithm.
-        // runExperiment(config, 1, 1, 12);
-
-        // Encodes the best of the first search for variants.
-        // The best for 10 pucks and in the top 3 for 20
-        //runExperiment(config, 47, 62, 1);
-
-        // The best for 50 pucks
-        //runExperiment(config, 45, 44, 1);
-    }
-*/        
 
     double runWithDefaultConfig(ControllerConfig ctrlConfig) {
         // Read the config file name from console if it exists

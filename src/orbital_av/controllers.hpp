@@ -74,14 +74,14 @@ public:
 
         const double MaxAngularSpeed = 0.1;
         const double ForwardSpeed = 2;
-        const double ShallowFactor = 1.0;
+        const double SlowFactor = 0.25;
         EntityAction straight(ForwardSpeed, 0);
         EntityAction left(ForwardSpeed, -MaxAngularSpeed);
         EntityAction right(ForwardSpeed, MaxAngularSpeed);
-        EntityAction shallowLeft(ForwardSpeed, -ShallowFactor*MaxAngularSpeed);
-        EntityAction shallowRight(ForwardSpeed, ShallowFactor*MaxAngularSpeed);
-        EntityAction slowSlightLeft(0.25*ForwardSpeed, -0.5*MaxAngularSpeed);
-        EntityAction slowStraight(0.25*ForwardSpeed, 0);
+        EntityAction slowLeft(SlowFactor * ForwardSpeed, -MaxAngularSpeed);
+        EntityAction slowRight(SlowFactor * ForwardSpeed, MaxAngularSpeed);
+        EntityAction slowStraight(SlowFactor * ForwardSpeed, 0);
+        EntityAction slowSlightLeft(SlowFactor * ForwardSpeed, -0.1*MaxAngularSpeed);
 
         size_t type = m_robot.getComponent<CRobotType>().type;
 
@@ -106,112 +106,86 @@ public:
         }
 
         /*
-        bool robotLeft = m_reading.leftRobots > 0;
-        bool robotRight = m_reading.rightRobots > 0;
-        if (C > 0.5) {
-            if ((m_config.leftRobotHiVariant & ordering) && robotLeft
-                &&
-                (m_config.rightRobotHiVariant & ordering) && robotRight)
-                return slowStraight;
-            if ((m_config.leftRobotHiVariant & ordering) && robotLeft)
-                return right;
-            if ((m_config.rightRobotHiVariant & ordering) && robotRight)
-                return left;
-        } else {
-            if ((m_config.leftRobotLoVariant & ordering) && robotLeft
-                &&
-                (m_config.rightRobotLoVariant & ordering) && robotRight)
-                return slowStraight;
-            if ((m_config.leftRobotLoVariant & ordering) && robotLeft)
-                return right;
-            if ((m_config.rightRobotLoVariant & ordering) && robotRight)
-                return left;
-        }
-        if (C > 0.5) {
-            if (robotLeft) {
-                indicateRight();
-                return right;
-            }
-        } else {
-            if (robotLeft && robotRight) {
-                indicateStraight();
-                return slowStraight;
-            }
-            if (robotLeft) {
-                indicateLeft();
-                return left;
-            }
-        }
-        */
-
         int n = m_reading.image.size();
-//        if (C > 0.5) {
-            // Find the biggest gap between robots in the robot-only image.
-            int longestI = 0, longestJ = -1;
-            for (int i=0; i < n; i++)
-            {
-                if (!m_reading.image[i]) {
-                    for (int j = i; !m_reading.image[j] && j < n; j++) {
-                        if (j - i > longestJ - longestI) {
-                            longestI = i;
-                            longestJ = j;
-                        }
+        // Find the biggest gap between robots in the robot-only image.
+        int longestI = 0, longestJ = -1;
+        for (int i=0; i < n; i++)
+        {
+            if (!m_reading.image[i]) {
+                for (int j = i; !m_reading.image[j] && j < n; j++) {
+                    if (j - i > longestJ - longestI) {
+                        longestI = i;
+                        longestJ = j;
                     }
                 }
             }
+        }
 
-            if (longestI != 0 || longestJ != n-1)
-            {   // There is at least one robot in view...
-                if (longestI == 0) {
-                    indicateLeft();
-                    return left;
-                } if (longestJ == n-1) {
-                    indicateRight();
-                    return right;
-                }
+        if (longestI != 0 || longestJ != n-1)
+        {   // There is at least one robot in view...
 
-                // Considering the centre of the gap to be the average of 
-                // its two ends, longestI and longestJ.  Turn left/right to move
-                // this point towards the centre of the image.
-                int gapCentre = (longestI + longestJ)/2;
-                int error = n/2 - gapCentre;
-                if (error > 0 && (63 & ordering)) {
-                    indicateLeft();
-                    return left;
-                } if (error < 0) {
-                    indicateRight();
-                    return right;
-                }
-                indicateSlowStraight();
-                return slowStraight;
+            // Considering the centre of the gap to be the average of its 
+            // two ends, longestI and longestJ.  Define an error to
+            // minimize (i.e. turn in the direction that shrinks it).
+            int gapCentre = (longestI + longestJ)/2;
+            int error = n/2 - gapCentre;
+            if ((m_config.leftRobotVariant & ordering) && (longestI == 0 || error > 0)) {
+                indicateLeft();
+                return left;
+            } 
+            if ((m_config.rightRobotVariant & ordering) && (longestJ == n-1 || error < 0)) {
+                indicateRight();
+                return right;
             }
 
-//        } else
-//        {
-//            // Only react to another robot if it is in the left field of view.
-//            for (int i=0; i < n/2; i++)
-//            {
-//                if (m_reading.image[i]) {
-//                    indicateSlowStraight();
-//                    return slowSlightLeft;
-//                }
-//            }
-//        }
-        
+            indicateSlowStraight();
+            return slowStraight;
+        }
+        */
+
         bool pucksPerceived = m_reading.leftPucks > 0;
+        bool chooseLeft;
         if ((m_config.puckVariant & ordering) && pucksPerceived) {
-            return left; 
-        }
-        if (m_config.thresholdVariant & ordering) {
+            chooseLeft = true;
+        } else if (m_config.thresholdVariant & ordering) {
             if (C < m_threshold)
-                return shallowLeft;
+                chooseLeft = true;
             else
-                return shallowRight;
+                chooseLeft = false;
+        } else if (m_config.defaultVariant & ordering) {
+            chooseLeft = false;
+        } else {
+            chooseLeft = true;
         }
-        if (m_config.defaultVariant & ordering)
-            return right;
-        else
+
+        int n = m_reading.image.size();
+        bool leftFree = true, rightFree = true;
+        for (int i=0; i < n/2; i++)
+            if (m_reading.image[i])
+                leftFree = false;
+        for (int i=n/2; i < n; i++)
+            if (m_reading.image[i])
+                rightFree = false;
+
+        // If the chosen direction (not considering other robots) is free, then take it.
+        if (chooseLeft && leftFree) {
+            m_robot.addComponent<CColor>(0, 255, 0, 255);
             return left;
+        } 
+        if (!chooseLeft && rightFree) {
+            m_robot.addComponent<CColor>(0, 255, 0, 255);
+            return right;
+        }
+
+        // The chosen direction is not available.  Turn slowly to the right.
+        if ((m_config.avoidVariant & ordering)) {// && C > 0.5) {
+            m_robot.addComponent<CColor>(255, 0, 0, 255);
+std::cout << "DID IT" << std::endl;
+            return slowRight;
+        }
+
+        m_robot.addComponent<CColor>(0, 0, 255, 255);
+        return slowStraight;
     }
 };
 

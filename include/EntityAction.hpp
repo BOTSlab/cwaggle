@@ -7,10 +7,9 @@
 
 class EntityAction
 {
+public:
     double  m_angularSpeed = 0;
     double  m_speed        = 0;
-    
-public:
         
     EntityAction() {}
     EntityAction(double speed, double angle)

@@ -70,10 +70,7 @@ struct ExperimentConfig
 
 struct ControllerConfig
 {
-    int leftRobotHiVariant;
-    int rightRobotHiVariant;
-    int leftRobotLoVariant;
-    int rightRobotLoVariant;
+    int avoidVariant;
 
     int puckVariant;
     int thresholdVariant;
@@ -90,10 +87,7 @@ struct ControllerConfig
         while (fin.good())
         {
             fin >> token;
-            if (token == "leftRobotHiVariant")      { fin >> leftRobotHiVariant; }
-            else if (token == "rightRobotHiVariant")    { fin >> rightRobotHiVariant; }
-            else if (token == "leftRobotLoVariant")    { fin >> leftRobotLoVariant; }
-            else if (token == "rightRobotLoVariant")    { fin >> rightRobotLoVariant; }
+            if (token == "avoidVariant")      { fin >> avoidVariant; }
             else if (token == "puckVariant")    { fin >> puckVariant; }
             else if (token == "thresholdVariant")    { fin >> thresholdVariant; }
             else if (token == "defaultVariant")    { fin >> defaultVariant; }
@@ -102,7 +96,8 @@ struct ControllerConfig
 
     void print() {
         std::cout 
-            << leftRobotHiVariant << "_" << rightRobotHiVariant << "_" << leftRobotLoVariant << "_" << rightRobotLoVariant << "___"
+            << avoidVariant << "_" 
+            << "___"
             << puckVariant << "_" << thresholdVariant << "_" << defaultVariant;
     }
 };
