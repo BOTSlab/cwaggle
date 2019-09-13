@@ -116,7 +116,7 @@ return true;
         // ROBOT SENSOR
         // 
 
-        auto cameraSensor = std::make_shared<PseudoCameraSensor>(robot, "robot", 2*robotRadius, 4*robotRadius, 0.95 * M_PI, 13);
+        auto cameraSensor = std::make_shared<PseudoCameraSensor>(robot, "robot", 2*robotRadius, 3*robotRadius, 0.75 * M_PI, 6);
         sensors.cameraSensors.push_back(cameraSensor);
 
         /*

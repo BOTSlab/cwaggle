@@ -113,10 +113,9 @@ void runBest()
     ctrlConfig.puckVariant = 5;
     ctrlConfig.thresholdVariant = 1;
     ctrlConfig.defaultVariant = 12;
-    ctrlConfig.avoidVariant = 54;
+    ctrlConfig.avoidVariant = 50;
     MyExperiments::runWithDefaultConfig(ctrlConfig);
 }
-
 
 int main(int argc, char ** argv)
 {   

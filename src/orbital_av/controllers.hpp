@@ -65,7 +65,6 @@ public:
         m_robot.addComponent<CVectorIndicator>(m_indicator);
     }
 
-
     virtual EntityAction getAction() {
         indicateNothing();
 
@@ -75,15 +74,10 @@ public:
         const double MaxAngularSpeed = 0.1;
         const double ForwardSpeed = 2;
         const double SlowFactor = 0.25;
-        EntityAction straight(ForwardSpeed, 0);
         EntityAction left(ForwardSpeed, -MaxAngularSpeed);
         EntityAction right(ForwardSpeed, MaxAngularSpeed);
-        EntityAction slowLeft(SlowFactor * ForwardSpeed, -MaxAngularSpeed);
         EntityAction slowRight(SlowFactor * ForwardSpeed, MaxAngularSpeed);
         EntityAction slowStraight(SlowFactor * ForwardSpeed, 0);
-        EntityAction slowSlightLeft(SlowFactor * ForwardSpeed, -0.1*MaxAngularSpeed);
-
-        size_t type = m_robot.getComponent<CRobotType>().type;
 
         double L = m_reading.leftNest;
         double C = m_reading.midNest;
@@ -91,6 +85,7 @@ public:
 
         // Determine the current ordering of scalar field sensors.
         unsigned int ordering = 0;
+        /*
         if (L >= C && C >= R) {
             ordering = 0b000001;
         } else if (L >= R && R >= C) {
@@ -104,44 +99,20 @@ public:
         } else if (R >= C && C >= L) {
             ordering = 0b100000;            
         }
-
-        /*
-        int n = m_reading.image.size();
-        // Find the biggest gap between robots in the robot-only image.
-        int longestI = 0, longestJ = -1;
-        for (int i=0; i < n; i++)
-        {
-            if (!m_reading.image[i]) {
-                for (int j = i; !m_reading.image[j] && j < n; j++) {
-                    if (j - i > longestJ - longestI) {
-                        longestI = i;
-                        longestJ = j;
-                    }
-                }
-            }
-        }
-
-        if (longestI != 0 || longestJ != n-1)
-        {   // There is at least one robot in view...
-
-            // Considering the centre of the gap to be the average of its 
-            // two ends, longestI and longestJ.  Define an error to
-            // minimize (i.e. turn in the direction that shrinks it).
-            int gapCentre = (longestI + longestJ)/2;
-            int error = n/2 - gapCentre;
-            if ((m_config.leftRobotVariant & ordering) && (longestI == 0 || error > 0)) {
-                indicateLeft();
-                return left;
-            } 
-            if ((m_config.rightRobotVariant & ordering) && (longestJ == n-1 || error < 0)) {
-                indicateRight();
-                return right;
-            }
-
-            indicateSlowStraight();
-            return slowStraight;
-        }
         */
+        if (R >= C && C >= L) {
+            ordering = 0b000001;
+        } else if (C >= R && R >= L) {
+            ordering = 0b000010;            
+        } else if (R >= L && L >= C) {
+            ordering = 0b000100;            
+        } else if (L >= R && R >= C) {
+            ordering = 0b001000;            
+        } else if (C >= L && L >= R) {
+            ordering = 0b010000;            
+        } else if (L >= C && C >= R) {
+            ordering = 0b100000;            
+        }
 
         bool pucksPerceived = m_reading.leftPucks > 0;
         bool chooseLeft;
@@ -149,15 +120,16 @@ public:
             chooseLeft = true;
         } else if (m_config.thresholdVariant & ordering) {
             if (C < m_threshold)
-                chooseLeft = true;
-            else
                 chooseLeft = false;
+            else
+                chooseLeft = true;
         } else if (m_config.defaultVariant & ordering) {
             chooseLeft = false;
         } else {
             chooseLeft = true;
         }
 
+        // Check the left/right image halves to see if the chosen direction is blocked or not.
         int n = m_reading.image.size();
         bool leftFree = true, rightFree = true;
         for (int i=0; i < n/2; i++)
@@ -178,9 +150,8 @@ public:
         }
 
         // The chosen direction is not available.  Turn slowly to the right.
-        if ((m_config.avoidVariant & ordering)) {// && C > 0.5) {
+        if ((m_config.avoidVariant & ordering)) {
             m_robot.addComponent<CColor>(255, 0, 0, 255);
-std::cout << "DID IT" << std::endl;
             return slowRight;
         }
 
