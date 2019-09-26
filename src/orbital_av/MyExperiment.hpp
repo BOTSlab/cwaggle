@@ -117,7 +117,7 @@ class MyExperiment
 
         if (m_gui) {
             m_gui->addContour(m_config.threshold);
-            m_gui->addContour(0.5);
+            m_gui->addContour(m_config.threshold/2);
         }
     }
 
@@ -184,7 +184,7 @@ public:
         if (m_config.writePlotSkip)
         {
             std::stringstream plotFilename;
-            plotFilename << m_config.plotFilenameBase << ".dat";
+            plotFilename << m_config.plotFilenameBase << "_" << trialIndex << ".dat";
             m_fout = std::ofstream(plotFilename.str());
         }
 
@@ -229,7 +229,7 @@ public:
         {
             // Figure out what evaluation to use depending upon the type of world we're running.
             if (m_config.worldName == "lgtv") {
-                m_eval = MyEval::PuckGridValues(world, "red_puck", 0);
+                m_eval = MyEval::PuckGridValues(world, "red_puck", 1, true);
             } /*else if (m_config.worldName == "simple" || m_config.worldName == "wall") {
                 m_eval = MyEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(300,300));
             } else if (m_config.worldName == "symmetric") {
@@ -261,7 +261,7 @@ public:
                 // update gui status text
                 m_status = std::stringstream();
                 m_status << "Sim Steps:  " << m_simulationSteps << "\n";
-                m_status << "Sim / Sec:  " << m_simulationSteps * 1000 / m_simulationTime << "\n";
+                //m_status << "Sim / Sec:  " << m_simulationSteps * 1000 / m_simulationTime << "\n";
                 m_status << "Puck Eval:  " << m_eval << "\n";
                 m_gui->setStatus(m_status.str());
 

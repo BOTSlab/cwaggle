@@ -139,21 +139,25 @@ protected:
 public:
     std::string m_typeName;
     std::string m_sideName;
-protected:
     std::vector<SensingCircle> m_circles;
+protected:
     bool m_mustTouchLeft = false;
     bool m_mustTouchRight = false;
+    double m_leftCentreThreshold, m_rightCentreThreshold;
 
 public:
     FancySensor() {}
     FancySensor(size_t ownerID, std::string typeName, std::string sideName,
-                std::vector<SensingCircle> inCircles, bool mustTouchLeft, bool mustTouchRight) 
+                std::vector<SensingCircle> inCircles, bool mustTouchLeft, bool mustTouchRight,
+                double leftCentreThreshold, double rightCentreThreshold) 
         : m_ownerID(ownerID)
         , m_typeName(typeName)
         , m_sideName(sideName)
         , m_circles(inCircles)
         , m_mustTouchLeft(mustTouchLeft)
         , m_mustTouchRight(mustTouchRight)
+        , m_leftCentreThreshold(leftCentreThreshold)
+        , m_rightCentreThreshold(rightCentreThreshold)
     { }
 
     inline int getNumberOfCircles()
@@ -211,9 +215,9 @@ public:
             if (m_mustTouchLeft || m_mustTouchRight) {
                 // Y-coordinate w.r.t. robot ref. frame
                 double y = -sin(theta) * (t.p.x - pos.x) + cos(theta) * (t.p.y - pos.y);
-                if (m_mustTouchLeft && y - b.r > 0)
+                if (m_mustTouchLeft && y - b.r > m_leftCentreThreshold)
                     objectSensed = false;
-                if (m_mustTouchRight && y + b.r < 0)
+                if (m_mustTouchRight && y + b.r < -m_rightCentreThreshold)
                     objectSensed = false;
             }
 

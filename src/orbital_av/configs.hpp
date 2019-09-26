@@ -13,9 +13,9 @@ struct ExperimentConfig
     double plowLength   = 60.0;
     double c1Radius     = 80.0;
     double c1Distance   = 140.0;
-    double c2Radius     = 40.0;
-    double c2Distance   = 140.0; 
-    double c3Radius     = 1000.0;
+
+    double puckViewRadius     = 1000.0;
+    double robotViewRadius     = 1000.0;
 
     size_t numPucks     = 0;
     double puckRadius   = 10.0;
@@ -32,6 +32,9 @@ struct ExperimentConfig
     size_t numTrials = 10;
     std::string worldName = "";
     std::string gridFilename = "";
+    std::string evalGridFilename = "";
+
+    size_t fakeRobots          = 0;
 
     ExperimentConfig() {}
 
@@ -49,9 +52,8 @@ struct ExperimentConfig
             else if (token == "plowLength")    { fin >> plowLength; }
             else if (token == "c1Radius")    { fin >> c1Radius; }
             else if (token == "c1Distance")    { fin >> c1Distance; }
-            else if (token == "c2Radius")    { fin >> c2Radius; }
-            else if (token == "c2Distance")    { fin >> c2Distance; }
-            else if (token == "c3Radius")    { fin >> c3Radius; }
+            else if (token == "puckViewRadius")    { fin >> puckViewRadius; }
+            else if (token == "robotViewRadius")    { fin >> robotViewRadius; }
             else if (token == "gui")            { fin >> gui; }
             else if (token == "numPucks")       { fin >> numPucks; }
             else if (token == "puckRadius")     { fin >> puckRadius; }
@@ -64,17 +66,17 @@ struct ExperimentConfig
             else if (token == "numTrials")   { fin >> numTrials; }
             else if (token == "worldName")   { fin >> worldName; }
             else if (token == "gridFilename")   { fin >> gridFilename; }
+            else if (token == "evalGridFilename")   { fin >> evalGridFilename; }
+            else if (token == "fakeRobots")   { fin >> fakeRobots; }
         }
     }
 };
 
 struct ControllerConfig
 {
-    int avoidVariant;
-
     int puckVariant;
-    int thresholdVariant;
-    int defaultVariant;
+    int alignVariant;
+    bool stallDetection;
 
     ControllerConfig() {}
 
@@ -87,17 +89,14 @@ struct ControllerConfig
         while (fin.good())
         {
             fin >> token;
-            if (token == "avoidVariant")      { fin >> avoidVariant; }
-            else if (token == "puckVariant")    { fin >> puckVariant; }
-            else if (token == "thresholdVariant")    { fin >> thresholdVariant; }
-            else if (token == "defaultVariant")    { fin >> defaultVariant; }
+            if (token == "puckVariant")    { fin >> puckVariant; }
+            else if (token == "alignVariant")    { fin >> alignVariant; }
+            else if (token == "stallDetection")    { fin >> stallDetection; }
         }
     }
 
     void print() {
         std::cout 
-            << avoidVariant << "_" 
-            << "___"
-            << puckVariant << "_" << thresholdVariant << "_" << defaultVariant;
+            << puckVariant << "_" << alignVariant << "_" << stallDetection;
     }
 };

@@ -69,10 +69,10 @@ namespace MyEval
         return total / n;
     }
 
-    double PuckGridValues(std::shared_ptr<World> world, std::string puckType, int gridIndex)
+    double PuckGridValues(std::shared_ptr<World> world, std::string puckType, int gridIndex, bool countOnlyThoseTouchingZero)
     {
         auto & grid = world->getGrid(gridIndex);
-        if (grid.width() == 0) { return 1; }
+        if (grid.width() == 0) { return 0; }
 
         double total = 0;
         double n = 0;
@@ -84,12 +84,17 @@ namespace MyEval
 
             size_t gX = (size_t)round(grid.width()  * pos.x / world->width());
             size_t gY = (size_t)round(grid.height() * pos.y / world->height());
-            total += grid.get(gX, gY);
+            if (countOnlyThoseTouchingZero) {
+                if (grid.get(gX, gY) == 0)
+                    total++;
+            } else {
+                total += grid.get(gX, gY);
+            }
             n++;
         }
         
-        // Any problems?  Return 1.
-        if (isnan(total) || n == 0) { return 1; }
+        // Any problems?  Return 0.
+        if (isnan(total) || n == 0) { return 0; }
 
         return total / n;
     }

@@ -260,6 +260,67 @@ class GUI
             m_window.draw(m_backgroundSprite);
         }
 
+ 
+        // draw robot plows
+        for (auto e : m_sim->getWorld()->getEntities())
+        {
+            if (!e.hasComponent<CPlowBody>()) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & pb = e.getComponent<CPlowBody>();
+            auto & c = e.getComponent<CColor>();
+            auto & steer = e.getComponent<CSteer>();
+    
+            pb.shape.setPosition((float)t.p.x, (float)t.p.y);
+            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
+            if (steer.slowedCount > 0) {
+                pb.shape.setFillColor(sf::Color(255, 0, 0));                
+            } else {
+                pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));                
+            }
+            m_window.draw(pb.shape);
+
+            // Draw a line along the prow.
+            Vec2 prow(t.p.x + pb.length * cos(steer.angle),
+                      t.p.y + pb.length * sin(steer.angle));
+            drawLine(t.p, prow, sf::Color(255, 255, 255));
+        }
+
+        // draw circles
+        for (auto e : m_sim->getWorld()->getEntities())
+        {
+            if (!e.hasComponent<CCircleShape>()) { continue; }
+
+            auto & t = e.getComponent<CTransform>();
+            auto & s = e.getComponent<CCircleShape>();
+            auto & c = e.getComponent<CColor>();
+
+            s.shape.setPosition((float)t.p.x, (float)t.p.y);
+            s.shape.setFillColor(sf::Color(c.r, c.g, c.b, c.a));
+
+            if (e.hasComponent<CSteer>()) {
+                auto & steer = e.getComponent<CSteer>();
+                if (steer.frozen)
+                    s.shape.setFillColor(sf::Color(127, 127, 127, 127));
+            }
+
+            m_window.draw(s.shape);
+
+            Vec2 velPoint;
+            double vLength = t.v.length();
+            if (vLength == 0)
+            {
+                velPoint = Vec2(t.p.x + s.shape.getRadius(), t.p.y);
+                continue;
+            }
+            else
+            {
+                velPoint = t.p + t.v.normalize() * s.shape.getRadius();
+            }
+
+            drawLine(t.p, velPoint, sf::Color(255, 255, 255));
+        }
+
         // draw robot sensors
         if (m_sensors)
         {
@@ -362,66 +423,6 @@ class GUI
                     m_window.draw(sensorShape);
                 }
             }
-        }
-
-        // draw robot plows
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CPlowBody>()) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & pb = e.getComponent<CPlowBody>();
-            auto & c = e.getComponent<CColor>();
-            auto & steer = e.getComponent<CSteer>();
-    
-            pb.shape.setPosition((float)t.p.x, (float)t.p.y);
-            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
-            if (steer.slowedCount > 0) {
-                pb.shape.setFillColor(sf::Color(255, 0, 0));                
-            } else {
-                pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));                
-            }
-            m_window.draw(pb.shape);
-
-            // Draw a line along the prow.
-            Vec2 prow(t.p.x + pb.length * cos(steer.angle + pb.offsetAngle),
-                      t.p.y + pb.length * sin(steer.angle + pb.offsetAngle));
-            drawLine(t.p, prow, sf::Color(255, 255, 255));
-        }
-
-        // draw circles
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CCircleShape>()) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & s = e.getComponent<CCircleShape>();
-            auto & c = e.getComponent<CColor>();
-
-            s.shape.setPosition((float)t.p.x, (float)t.p.y);
-            s.shape.setFillColor(sf::Color(c.r, c.g, c.b, c.a));
-
-            if (e.hasComponent<CSteer>()) {
-                auto & steer = e.getComponent<CSteer>();
-                if (steer.frozen)
-                    s.shape.setFillColor(sf::Color(127, 127, 127, 127));
-            }
-
-            m_window.draw(s.shape);
-
-            Vec2 velPoint;
-            double vLength = t.v.length();
-            if (vLength == 0)
-            {
-                velPoint = Vec2(t.p.x + s.shape.getRadius(), t.p.y);
-                continue;
-            }
-            else
-            {
-                velPoint = t.p + t.v.normalize() * s.shape.getRadius();
-            }
-
-            drawLine(t.p, velPoint, sf::Color(255, 255, 255));
         }
 
         // Draw other robot-specific "decorations".

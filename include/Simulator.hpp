@@ -136,9 +136,11 @@ class Simulator
 
                 // We create (but do not store) a CLineBody object used to check
                 // for collision with the current circle (b1).
-                double xProw = t.p.x + pb.length * cos(steer.angle + pb.offsetAngle);
-                double yProw = t.p.y + pb.length * sin(steer.angle + pb.offsetAngle);
-                CLineBody wedgeLineBody(Vec2(t.p.x, t.p.y), Vec2(xProw, yProw), pb.width/2.0);
+                double xStart = t.p.x + pb.startLength * cos(steer.angle);
+                double yStart = t.p.y + pb.startLength * sin(steer.angle);
+                double xProw = t.p.x + pb.length * cos(steer.angle);
+                double yProw = t.p.y + pb.length * sin(steer.angle);
+                CLineBody wedgeLineBody(Vec2(xStart, yStart), Vec2(xProw, yProw), pb.width/2.0);
 
                 bool collided = handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
 
@@ -219,8 +221,8 @@ class Simulator
             if (!e1.hasComponent<CPlowBody>()) { continue; }
             auto & pb = e1.getComponent<CPlowBody>();
             auto & steer = e1.getComponent<CSteer>();
-            double xProw = t1.p.x + pb.length * cos(steer.angle + pb.offsetAngle);
-            double yProw = t1.p.y + pb.length * sin(steer.angle + pb.offsetAngle);
+            double xProw = t1.p.x + pb.length * cos(steer.angle);
+            double yProw = t1.p.y + pb.length * sin(steer.angle);
             bool plowBorderCollision = false;
             if (xProw < 0) {t1.p.x -= xProw; b1.collided = true; plowBorderCollision = true; }
             if (yProw < 0) {t1.p.y -= yProw; b1.collided = true; plowBorderCollision = true; }
@@ -230,7 +232,6 @@ class Simulator
             if (plowBorderCollision) {
                 steer.slowedCount = SLOWED_ROBOT_COUNT;
             }
-
         }
 
         // step 3: calculate and apply dynamic collision resolution to any detected collisions

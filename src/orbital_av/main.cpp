@@ -41,10 +41,9 @@ public:
         assert(x[i] >= 0 && x[i] <= 63);
       
       ControllerConfig ctrlConfig;
-      ctrlConfig.avoidVariant = constrain(x[0]);
+      //ctrlConfig.avoidVariant = constrain(x[0]);
       ctrlConfig.puckVariant = 5;
-      ctrlConfig.thresholdVariant = 1;
-      ctrlConfig.defaultVariant = 12;
+      ctrlConfig.alignVariant = 12;
       return {MyExperiments::runWithDefaultConfig(ctrlConfig)};
     }
 
@@ -98,22 +97,34 @@ void runGA() {
 void parameterSweep()
 {
     ControllerConfig ctrlConfig;
-    ctrlConfig.puckVariant = 5;
-    ctrlConfig.thresholdVariant = 1;
-    ctrlConfig.defaultVariant = 12;
-    for (ctrlConfig.avoidVariant = 0; ctrlConfig.avoidVariant < 64; ctrlConfig.avoidVariant++)
-    {
-        MyExperiments::runWithDefaultConfig(ctrlConfig);
-    }
+    ctrlConfig.stallDetection = false;
+    for (ctrlConfig.puckVariant = 0; ctrlConfig.puckVariant < 64; ctrlConfig.puckVariant++)
+        for (ctrlConfig.alignVariant = 0; ctrlConfig.alignVariant < 64; ctrlConfig.alignVariant++)
+            MyExperiments::runWithDefaultConfig(ctrlConfig);
+
+    /*
+    ctrlConfig.stallDetection = true;
+    for (ctrlConfig.puckVariant = 0; ctrlConfig.puckVariant < 64; ctrlConfig.puckVariant++)
+        for (ctrlConfig.alignVariant = 0; ctrlConfig.alignVariant < 64; ctrlConfig.alignVariant++)
+            MyExperiments::runWithDefaultConfig(ctrlConfig);
+    */
+
+    /*
+    ctrlConfig.puckVariant = 55;//5;
+    ctrlConfig.alignVariant = 32;//12;
+    ctrlConfig.stallDetection = true;
+    MyExperiments::runWithDefaultConfig(ctrlConfig);
+    ctrlConfig.stallDetection = false;
+    MyExperiments::runWithDefaultConfig(ctrlConfig);
+    */
 }
 
 void runBest()
 {
     ControllerConfig ctrlConfig;
-    ctrlConfig.puckVariant = 5;
-    ctrlConfig.thresholdVariant = 1;
-    ctrlConfig.defaultVariant = 12;
-    ctrlConfig.avoidVariant = 50;
+    ctrlConfig.puckVariant = 13;//5;
+    ctrlConfig.alignVariant = 18;//12;
+    ctrlConfig.stallDetection = false;
     MyExperiments::runWithDefaultConfig(ctrlConfig);
 }
 
@@ -129,7 +140,7 @@ int main(int argc, char ** argv)
       //runGA();
       //parameterSweep();
       runBest();
-   } else if (argc == 6) {
+   } /*else if (argc == 6) {
       // Manual run with parameters specified.
       std::string configFile = argv[1];
       ExperimentConfig config;
@@ -146,6 +157,7 @@ int main(int argc, char ** argv)
       std::cerr << "defaultVariant: " << ctrlConfig.defaultVariant << std::endl;
       MyExperiments::runExperiment(config, ctrlConfig);
    }
+   */
 
    return 0;
 }

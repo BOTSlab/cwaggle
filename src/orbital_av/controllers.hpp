@@ -11,6 +11,7 @@ class EntityController_OrbitalConstructionVariant : public EntityController
     Entity          m_robot;
     double          m_threshold;
     ControllerConfig m_config;
+    int              m_backupCounter, m_backupPeriod, m_slowedSteps;
     CVectorIndicator m_indicator;
 
     SensorReading   m_reading;
@@ -22,6 +23,9 @@ public:
         , m_robot(robot)
         , m_threshold(threshold)
         , m_config(config)
+        , m_backupCounter(0)
+        , m_backupPeriod(20)
+        , m_slowedSteps(0)
         , m_indicator(3.14, 20, 255, 0, 0, 255)
     {
     }
@@ -68,16 +72,30 @@ public:
     virtual EntityAction getAction() {
         indicateNothing();
 
-        // read the sensors and store it in m_reading
-        SensorTools::ReadSensorArray(m_robot, m_world, m_reading);
-
-        const double MaxAngularSpeed = 0.1;
+        const double MaxAngularSpeed = 0.125;//0.1;
         const double ForwardSpeed = 2;
         const double SlowFactor = 0.25;
         EntityAction left(ForwardSpeed, -MaxAngularSpeed);
         EntityAction right(ForwardSpeed, MaxAngularSpeed);
         EntityAction slowRight(SlowFactor * ForwardSpeed, MaxAngularSpeed);
         EntityAction slowStraight(SlowFactor * ForwardSpeed, 0);
+        //EntityAction backupAndTurn(-ForwardSpeed, -0.25*MaxAngularSpeed);
+
+        /*if (m_backupCounter > 0) {
+            m_slowedSteps = 0;
+            m_backupCounter--;
+            m_robot.addComponent<CColor>(127, 127, 127, 255);
+            return backupAndTurn;
+        }
+        if (m_config.stallDetection && m_slowedSteps > 500) {
+            m_slowedSteps = 0;
+            m_backupCounter = m_backupPeriod;
+            m_robot.addComponent<CColor>(255, 255, 255, 255);
+            return backupAndTurn;
+        }
+        */
+        // read the sensors and store it in m_reading
+        SensorTools::ReadSensorArray(m_robot, m_world, m_reading);
 
         double L = m_reading.leftNest;
         double C = m_reading.midNest;
@@ -85,21 +103,6 @@ public:
 
         // Determine the current ordering of scalar field sensors.
         unsigned int ordering = 0;
-        /*
-        if (L >= C && C >= R) {
-            ordering = 0b000001;
-        } else if (L >= R && R >= C) {
-            ordering = 0b000010;            
-        } else if (C >= L && L >= R) {
-            ordering = 0b000100;            
-        } else if (C >= R && R >= L) {
-            ordering = 0b001000;            
-        } else if (R >= L && L >= C) {
-            ordering = 0b010000;            
-        } else if (R >= C && C >= L) {
-            ordering = 0b100000;            
-        }
-        */
         if (R >= C && C >= L) {
             ordering = 0b000001;
         } else if (C >= R && R >= L) {
@@ -114,48 +117,74 @@ public:
             ordering = 0b100000;            
         }
 
+        bool blackL = L == 0;
+        bool blackC = C == 0;
+        bool blackR = R == 0;
+
+        /*if (m_backupCounter > 0 || (blackL && blackC && blackR) || (blackL && blackC) || (blackL && blackR) || (blackR && !blackC && C < L)) {
+            // If 2 or 3 are black, assume we are within the black region.  Get out of there!
+            m_backupCounter = m_backupPeriod;
+            m_robot.addComponent<CColor>(127, 127, 127, 255);
+            return backupAndTurn;
+        } else if (blackR && C > L) {
+            return left;
+        }
+        */
+        if (C == 0) {
+            return left;
+        }
+
         bool pucksPerceived = m_reading.leftPucks > 0;
         bool chooseLeft;
         if ((m_config.puckVariant & ordering) && pucksPerceived) {
             chooseLeft = true;
-        } else if (m_config.thresholdVariant & ordering) {
-            if (C < m_threshold)
-                chooseLeft = false;
-            else
-                chooseLeft = true;
-        } else if (m_config.defaultVariant & ordering) {
-            chooseLeft = false;
-        } else {
+        } else if (m_config.alignVariant & ordering) {
             chooseLeft = true;
+        } else {
+            chooseLeft = false;
         }
 
         // Check the left/right image halves to see if the chosen direction is blocked or not.
-        int n = m_reading.image.size();
-        bool leftFree = true, rightFree = true;
-        for (int i=0; i < n/2; i++)
-            if (m_reading.image[i])
-                leftFree = false;
-        for (int i=n/2; i < n; i++)
-            if (m_reading.image[i])
-                rightFree = false;
+        bool leftRobot = m_reading.leftRobots > 0;
+        bool rightRobot = m_reading.rightRobots > 0;
+//leftRobot = false;
+//rightRobot = false;
 
         // If the chosen direction (not considering other robots) is free, then take it.
-        if (chooseLeft && leftFree) {
+        if (chooseLeft && !leftRobot) {
             m_robot.addComponent<CColor>(0, 255, 0, 255);
+            m_slowedSteps = 0;
             return left;
         } 
-        if (!chooseLeft && rightFree) {
+        if (!chooseLeft && !rightRobot) {
             m_robot.addComponent<CColor>(0, 255, 0, 255);
+            m_slowedSteps = 0;
             return right;
         }
 
         // The chosen direction is not available.  Turn slowly to the right.
-        if ((m_config.avoidVariant & ordering)) {
+        /*
+        if (C < m_threshold/2 && (m_config.avoidVariant & ordering)) {
             m_robot.addComponent<CColor>(255, 0, 0, 255);
             return slowRight;
         }
+        */
+
+       /*
+        if (C > m_threshold/2 && !leftRobot) {
+            m_robot.addComponent<CColor>(0, 255, 255, 255);
+            m_slowedSteps = 0;
+            return left;
+        }
+        if (C < m_threshold/2 && !rightRobot) {
+            m_robot.addComponent<CColor>(255, 255, 0, 255);
+            m_slowedSteps = 0;
+            return right;
+        }
+        */
 
         m_robot.addComponent<CColor>(0, 0, 255, 255);
+        m_slowedSteps++;
         return slowStraight;
     }
 };

@@ -129,22 +129,24 @@ public:
 class CPlowBody
 {
 public:
-    double width, length, offsetAngle;
+    double length, startLength, width;
     sf::ConvexShape shape;
 
     CPlowBody() {}
-    CPlowBody(double w, double l, double oa)
-        : width(w)
-        , length(l)
-        , offsetAngle(oa*3.1415926 / 180.0)
+    CPlowBody(double l, double cbRadius)
+        : length(l)
         , shape()
     {
+        startLength = cbRadius*cbRadius / length;
+        // This is right, but seems to cause problems getting pucks away from borders/corners.
+        // width = 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
+        width = 0.9 * 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
+
         shape.setPointCount(3);
-        shape.setPoint(0, sf::Vector2f(0, -w/2.0f));
-        double prowX = l * cos(offsetAngle);
-        double prowY = l * sin(offsetAngle);
-        shape.setPoint(1, sf::Vector2f(prowX, prowY));
-        shape.setPoint(2, sf::Vector2f(0, w/2.0f));
+
+        shape.setPoint(0, sf::Vector2f(startLength, -width/2.0f));
+        shape.setPoint(1, sf::Vector2f(length, 0));
+        shape.setPoint(2, sf::Vector2f(startLength, width/2.0f));
     }
 };
 

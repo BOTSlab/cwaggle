@@ -5,11 +5,11 @@ c1Radius       120
 c1Distance     140
 c2Radius	   80
 c2Distance     140 
-c3Radius       120
+c3Radius       100
 gui            1
 numPucks       300
 puckRadius     7
-threshold      0.08
+threshold      0.92
 simTimeStep    1
 renderSkip     1
 maxTimeSteps   40000000

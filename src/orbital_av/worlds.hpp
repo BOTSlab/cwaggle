@@ -71,28 +71,29 @@ return true;
 
         Vec2 rPos(x, y);
         robot.addComponent<CTransform>(rPos);
-        robot.addComponent<CCircleBody>(config.robotRadius, true);
-        robot.addComponent<CCircleShape>(config.robotRadius);
-        robot.addComponent<CColor>(red, green, blue, 255);
+        if (!config.fakeRobots) {
+            robot.addComponent<CCircleBody>(config.robotRadius, true);
+            robot.addComponent<CCircleShape>(config.robotRadius);
+            robot.addComponent<CColor>(red, green, blue, 255);
+        }
         //robot.addComponent<CRobotType>(robotType);
 
         int robotRadius = (int) config.robotRadius;
 
         // Wedge shaped plow at the front of the robot.
-        if (config.plowLength > 0) {
-            float plowWidth = 2*robotRadius;
-            robot.addComponent<CPlowBody>(plowWidth, config.plowLength, 0);
-        }
+        if (config.plowLength > 0)
+            robot.addComponent<CPlowBody>(config.plowLength, config.robotRadius);
 
         auto & sensors = robot.addComponent<CSensorArray>();
-        double gridSensorRadius = 5;
-        sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, gridIndex, 45, robotRadius + gridSensorRadius));
+        double gridSensorRadius = 2;
+        double gridSensorAngle = 45;
+        sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, gridIndex, gridSensorAngle, robotRadius + gridSensorRadius));
         sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, gridIndex, 0, robotRadius + gridSensorRadius));
-        sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, gridIndex, -45, robotRadius + gridSensorRadius));
+        sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, gridIndex, -gridSensorAngle, robotRadius + gridSensorRadius));
         if (team != "justRed") {
-            sensors.oppGridSensors.push_back(std::make_shared<GridSensor>(robot, otherGridIndex, 45, robotRadius + gridSensorRadius));
+            sensors.oppGridSensors.push_back(std::make_shared<GridSensor>(robot, otherGridIndex, gridSensorAngle, robotRadius + gridSensorRadius));
             sensors.oppGridSensors.push_back(std::make_shared<GridSensor>(robot, otherGridIndex, 0, robotRadius + gridSensorRadius));
-            sensors.oppGridSensors.push_back(std::make_shared<GridSensor>(robot, otherGridIndex, -45, robotRadius + gridSensorRadius));
+            sensors.oppGridSensors.push_back(std::make_shared<GridSensor>(robot, otherGridIndex, -gridSensorAngle, robotRadius + gridSensorRadius));
         }
 
         // Both the puck sensor and robot sensor are instances of FancySensor.  Both will use the same initial
@@ -107,28 +108,26 @@ return true;
         // so that the robot does not react to pucks outside of its action space.
         std::vector<SensingCircle> circles;
         circles.push_back(SensingCircle(0, config.c1Distance, config.c1Radius, true));
-        circles.push_back(SensingCircle(0, config.c2Distance, config.c2Radius, true));
+        circles.push_back(SensingCircle(0, 0, config.puckViewRadius, true));
 
-        auto fancyLeftPuckSensor = std::make_shared<FancySensor>(robot, "red_puck", "left", circles, true, false);
+        auto fancyLeftPuckSensor = std::make_shared<FancySensor>(robot, "red_puck", "left", circles, true, false, 0, 0);
         sensors.fancySensors.push_back(fancyLeftPuckSensor);
 
         //
         // ROBOT SENSOR
         // 
 
-        auto cameraSensor = std::make_shared<PseudoCameraSensor>(robot, "robot", 2*robotRadius, 3*robotRadius, 0.75 * M_PI, 6);
-        sensors.cameraSensors.push_back(cameraSensor);
+        //auto cameraSensor = std::make_shared<PseudoCameraSensor>(robot, "robot", 2*robotRadius, 3*robotRadius, 0.75 * M_PI, 6);
+        //sensors.cameraSensors.push_back(cameraSensor);
 
-        /*
         circles.clear();
         circles.push_back(SensingCircle(0, config.c1Distance, config.c1Radius, true));
-        circles.push_back(SensingCircle(0, 0, config.c3Radius, true));
-        auto fancyRightRobotSensor = std::make_shared<FancySensor>(robot, "robot", "right", circles, false, true);
+        circles.push_back(SensingCircle(0, 0, config.robotViewRadius, true));
+        auto fancyRightRobotSensor = std::make_shared<FancySensor>(robot, "robot", "right", circles, false, true, 0, 0);
         sensors.fancySensors.push_back(fancyRightRobotSensor);
 
-        auto fancyLeftRobotSensor = std::make_shared<FancySensor>(robot, "robot", "left", circles, true, false);
+        auto fancyLeftRobotSensor = std::make_shared<FancySensor>(robot, "robot", "left", circles, true, false, 0, 0);
         sensors.fancySensors.push_back(fancyLeftRobotSensor);
-        */
     }
 
     void addRobots(std::string team, std::shared_ptr<World> world, size_t width, size_t height, ExperimentConfig config)
@@ -148,6 +147,31 @@ return true;
         }
     }
 
+    void addRobotsOnGrid(std::string team, std::shared_ptr<World> world, size_t width, size_t height, ExperimentConfig config)
+    {
+        int numRobots = (int) config.numRobots;
+        int gap = 45;
+        int x = gap;
+        int y = gap;
+        auto & grid = world->getGrid(0);
+
+        for (size_t r = 0; r < numRobots; r++)
+        {
+            if (grid.get(x, y) > 0)
+                addRobot(team, world, x, y, config);
+
+            x += gap;
+            if (x > width) {
+                x = gap;
+                y += gap;
+                if (y > height)
+                    // Giving up because we already have a grid full of robots.
+                    return;
+            }
+        }
+    }
+
+
     void addPuck(std::string name, size_t red, size_t green, size_t blue, std::shared_ptr<World> world, size_t x, size_t y, size_t puckRadius)
     {
         Entity puck = world->addEntity(name);
@@ -161,13 +185,17 @@ return true;
     void addPucks(std::string name, size_t red, size_t green, size_t blue, std::shared_ptr<World> world, size_t width, size_t height, ExperimentConfig config)
     {
         int puckRadius = (int) config.puckRadius;
+        int minX = puckRadius * 4;
+        int maxX = width - 2*minX;
+        int minY = puckRadius * 4;
+        int maxY = height - 2*minY;
         for (size_t r = 0; r < config.numPucks; r++)
         {
             bool positionFree = false;
             int x, y;
             while (!positionFree) {
-                x = puckRadius + rand() % (int)(width - 2 * puckRadius);
-                y = puckRadius + rand() % (int)(height - 2 * puckRadius);
+                x = minX + rand() % maxX;
+                y = minY + rand() % maxY;
 
                 positionFree = positionOkay(x, y);
             }
@@ -182,7 +210,12 @@ return true;
         size_t width = valueGrid.width();
         size_t height = valueGrid.height();
 
+        // This value grid is just for evaluation purposes.  Needed this after adding the "black hole" to the value grid.
+        ValueGrid gridForEval(config.evalGridFilename);
+
         auto world = std::make_shared<World>(width, height);
+        world->addGrid(valueGrid);
+        world->addGrid(gridForEval);
 
         // Create the boundary walls.
         Entity topWall = world->addEntity("line");
@@ -196,13 +229,26 @@ return true;
         leftWall.addComponent<CLineBody>(Vec2(-t, -t), Vec2(-t, height-1 + t), t);
         rightWall.addComponent<CLineBody>(Vec2(width-1 + t, -t), Vec2(width-1 + t, height-1 + t), t);
 
+        // Corner pieces.
+        /*
+        double length = 25;
+        t = length / sqrt(2.0);
+        Entity topLeftCorner = world->addEntity("line");
+        Entity botLeftCorner = world->addEntity("line");
+        Entity topRightCorner = world->addEntity("line");
+        Entity botRightCorner = world->addEntity("line");
+        topLeftCorner.addComponent<CLineBody>(Vec2(-length, 2*length), Vec2(2*length, -length), t);
+        botLeftCorner.addComponent<CLineBody>(Vec2(-length, height-2*length), Vec2(2*length, height+length), t);
+        topRightCorner.addComponent<CLineBody>(Vec2(width+length, 2*length), Vec2(width-2*length, -length), t);
+        botRightCorner.addComponent<CLineBody>(Vec2(width+length, height-2*length), Vec2(width-2*length, height+length), t);
+        */
+
         addRobots("justRed", world, width, height, config);
+//addRobotsOnGrid("justRed", world, width, height, config);
         //addRobot("justRed", world, width/2, height/2, robotRadius, senseRadius, hookSensor);
 
         addPucks("red_puck", 200, 44, 44, world, width, height, config);
         //addPuck("red_puck", 200, 44, 44, world, width-puckSize, height/2, puckSize);
-
-        world->addGrid(valueGrid);
 
         world->update();
         return world;
