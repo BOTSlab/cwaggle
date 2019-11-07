@@ -35,6 +35,8 @@ struct ExperimentConfig
     std::string evalGridFilename = "";
 
     size_t fakeRobots          = 0;
+    size_t captureScreenshots          = 0;
+    std::string screenshotFilenameBase   = "";
 
     ExperimentConfig() {}
 
@@ -68,6 +70,8 @@ struct ExperimentConfig
             else if (token == "gridFilename")   { fin >> gridFilename; }
             else if (token == "evalGridFilename")   { fin >> evalGridFilename; }
             else if (token == "fakeRobots")   { fin >> fakeRobots; }
+            else if (token == "captureScreenshots")   { fin >> captureScreenshots; }
+            else if (token == "screenshotFilenameBase")   { fin >> screenshotFilenameBase; }
         }
     }
 };

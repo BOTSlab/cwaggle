@@ -88,7 +88,10 @@ class GUI
 
         m_backgroundTexture.loadFromImage(m_occupancyImage);
         m_backgroundSprite.setTexture(m_backgroundTexture);
-        m_backgroundImagePtr = NULL;
+
+        // Make grid image 0 the default
+        //m_backgroundImagePtr = NULL;
+        m_backgroundImagePtr = &m_gridImages[0];
     }
 
     void rotateRobots(double angle)
@@ -581,6 +584,23 @@ public:
         }
     } 
 
+    void updateGridImage(int gridIndex) {
+        auto & grid = m_sim->getWorld()->getGrid(gridIndex);
+
+        int w = grid.width();
+        int h = grid.height();
+
+        auto & gridImage = m_gridImages[gridIndex];
+
+        for (size_t x = 0; x < w; x++) {
+            for (size_t y = 0; y < h; y++) {
+                uint8_t c = (uint8_t)(grid.get(x, y) * 255);
+                sf::Color color(c, c, c);
+                gridImage.setPixel(x, y, color); 
+            }
+        }
+    }
+
     void setUpArrowCallback(callback_function pFunc) {
         m_upArrowCallback = pFunc;
     }   
@@ -590,4 +610,13 @@ public:
     void setSpaceCallback(callback_function pFunc) {
         m_spaceCallback = pFunc;
     }   
+
+    void saveScreenshot(std::string filename) {
+        //sf::Image screenshot = m_window.capture();
+        //screenshot.saveToFile(filename);
+        sf::Texture texture;
+        texture.create(m_window.getSize().x, m_window.getSize().y);
+        texture.update(m_window);
+        texture.copyToImage().saveToFile(filename);
+    }
 };

@@ -261,12 +261,17 @@ public:
                 // update gui status text
                 m_status = std::stringstream();
                 m_status << "Sim Steps:  " << m_simulationSteps << "\n";
-                //m_status << "Sim / Sec:  " << m_simulationSteps * 1000 / m_simulationTime << "\n";
                 m_status << "Puck Eval:  " << m_eval << "\n";
                 m_gui->setStatus(m_status.str());
 
                 // draw gui
                 m_gui->update();
+
+                if (m_config.captureScreenshots) {
+                    std::stringstream filename;
+                    filename << m_config.screenshotFilenameBase << m_simulationSteps << ".png";
+                    m_gui->saveScreenshot(filename.str());
+                }
             }
 
             // RESET SIMULATOR IF DESIRED

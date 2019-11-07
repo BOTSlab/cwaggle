@@ -21,3 +21,5 @@ worldName		lgtv
 gridFilename	../../images/line_div_4_bias_0_bhf_0.07.png
 evalGridFilename	../../images/line_eval.png
 fakeRobots      0
+captureScreenshots    0
+screenshotFilenameBase   ../../screenshots/
