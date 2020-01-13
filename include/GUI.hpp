@@ -486,7 +486,20 @@ class GUI
             //text.setPosition((float)t.p.x, (float)t.p.y);
             float w = m_sim->getWorld()->width();
             float h = m_sim->getWorld()->height();
-            text.setPosition(w/2.0, h/2.0);
+            float textX = w / 2.0f;
+            float textY = h / 2.0f;
+            text.setPosition(textX, textY);
+            text.setFillColor(sf::Color::White);
+
+            // Get a rectangle to draw in the background, making the text easier to see.
+            sf::FloatRect backgroundRect = text.getLocalBounds();
+            sf::RectangleShape background(sf::Vector2f(backgroundRect.width, backgroundRect.height));
+            background.setFillColor(sf::Color::Black);
+            sf::Transform xform = text.getTransform();
+            // TRYING TO RESCALE WINDOW BUT ITS NOT WORKING
+            //m_window.draw(background, xform.scale(1.5f, 1.5f, textX, textY));
+            m_window.draw(background, xform);
+        
             m_window.draw(text);
         }
         
@@ -506,7 +519,8 @@ class GUI
         text.setString(m_status);
         text.setCharacterSize(20);
         text.setPosition(5, (float)m_sim->getWorld()->height() - text.getLocalBounds().height-5);
-        
+
+        // Now draw the text itself.
         m_window.draw(text);
 
         m_window.display();
