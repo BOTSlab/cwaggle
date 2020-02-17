@@ -20,6 +20,8 @@ typedef std::tuple <
     std::vector<CSteer>,
     std::vector<CVectorIndicator>,
     std::vector<CPlowBody>,
+    std::vector<CSpoke>,
+    std::vector<COuterShell>,
     std::vector<CColor>
 > EntityData;
 
@@ -45,6 +47,8 @@ class EntityMemoryPool
         getData<CController>().resize(MaxEntities);
         getData<CVectorIndicator>().resize(MaxEntities);
         getData<CPlowBody>().resize(MaxEntities);
+        getData<CSpoke>().resize(MaxEntities);
+        getData<COuterShell>().resize(MaxEntities);
         getData<CColor>().resize(MaxEntities);
         m_hasComponent.resize(MaxEntities);
         m_tags.resize(MaxEntities);
@@ -120,6 +124,8 @@ public:
         getData<CController>()[entityIndex]   = {};
         getData<CVectorIndicator>()[entityIndex]   = {};
         getData<CPlowBody>()[entityIndex]   = {};
+        getData<CSpoke>()[entityIndex]   = {};
+        getData<COuterShell>()[entityIndex]   = {};
         getData<CSteer>()[entityIndex]        = {};
         m_hasComponent[entityIndex]           = {};
         m_tags[entityIndex]                   = tag;

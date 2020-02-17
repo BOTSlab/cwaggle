@@ -150,6 +150,37 @@ public:
     }
 };
 
+// Simulates a spoke---a rigid member attached to the robot that generates
+// one-sided CLineBody style collisions with pucks.
+class CSpoke
+{
+public:
+    double innerAngle, innerRadius, outerAngle, outerRadius;
+
+    CSpoke() {}
+    CSpoke(double ia, double ir, double oa, double outerR)
+        : innerAngle(ia)
+        , innerRadius(ir)
+        , outerAngle(oa)
+        , outerRadius(outerR)
+    {
+    }
+};
+
+// Simulates the robot's outer circular shell that other robots and walls
+// collide with, but which pucks can pass within.
+class COuterShell
+{
+public:
+    double radius;
+
+    COuterShell() {}
+    COuterShell(double r)
+        : radius(r)
+    {
+    }
+};
+
 class EntityController;
 class CController
 {
