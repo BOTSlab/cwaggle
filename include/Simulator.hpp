@@ -153,29 +153,44 @@ class Simulator
                 }
             }
 
-            // AV: step 1.75: check collisions of all circles against all robots with spokes
+            // AV: step 1.75: check collisions pucks (don't have spokes) and robots
+            if (!e1.hasComponent<CSpoke>()) 
+            { 
+                for (auto & e : m_world->getEntities("robot"))
+                {
+                    if (!e.hasComponent<CSpoke>()) { continue; }
+
+                    // Do not check with collisions between a robot's CircleBody and its own spoke.
+                    if (e1.id() == e.id()) { continue; }
+
+                    auto & t = e.getComponent<CTransform>();
+                    auto & cb = e.getComponent<CCircleBody>();
+                    auto & steer = e.getComponent<CSteer>();
+                    auto & spoke = e.getComponent<CSpoke>();
+
+                    // We create (but do not store) a CLineBody object used to check
+                    // for collision with the current circle (b1).
+                    double x0 = t.p.x + spoke.innerRadius * cos(steer.angle + spoke.innerAngle);
+                    double y0 = t.p.y + spoke.innerRadius * sin(steer.angle + spoke.innerAngle);
+                    double x1 = t.p.x + spoke.outerRadius * cos(steer.angle + spoke.outerAngle);
+                    double y1 = t.p.y + spoke.outerRadius * sin(steer.angle + spoke.outerAngle);
+                    CLineBody spokeLineBody(Vec2(x0, y0), Vec2(x1, y1), 1.0);
+
+                    bool collided = handleCollisionWithLineBody(b1, t1, spokeLineBody, false);
+                }
+            }
+
+            // AV: step 1.8: check collisions between the outer shell's of robots
             for (auto & e : m_world->getEntities("robot"))
             {
-                if (!e.hasComponent<CSpoke>()) { continue; }
+                if (!e.hasComponent<COuterShell>() &&
+                    !e1.hasComponent<COuterShell>()) { continue; }
 
                 // Do not check with collisions between a robot's CircleBody and its own spoke.
                 if (e1.id() == e.id()) { continue; }
 
-                auto & t = e.getComponent<CTransform>();
-                auto & cb = e.getComponent<CCircleBody>();
-                auto & steer = e.getComponent<CSteer>();
-                auto & spoke = e.getComponent<CSpoke>();
-
-                // We create (but do not store) a CLineBody object used to check
-                // for collision with the current circle (b1).
-                double x0 = t.p.x + spoke.innerRadius * cos(steer.angle + spoke.innerAngle);
-                double y0 = t.p.y + spoke.innerRadius * sin(steer.angle + spoke.innerAngle);
-                double x1 = t.p.x + spoke.outerRadius * cos(steer.angle + spoke.outerAngle);
-                double y1 = t.p.y + spoke.outerRadius * sin(steer.angle + spoke.outerAngle);
-                CLineBody spokeLineBody(Vec2(x0, y0), Vec2(x1, y1), 1.0);
-
-                bool collided = handleCollisionWithLineBody(b1, t1, spokeLineBody, false);
             }
+            
             
             // if this circle hasn't moved, we don't need to check collisions for it
             if (!t1.moved) { continue; }
@@ -183,51 +198,6 @@ class Simulator
             // step 2: check collisions of all circles against all other circles
             for (auto e2 : m_collisionEntities)
             {
-                //auto & t2 = e2.getComponent<CTransform>();
-                //auto & b2 = e2.getComponent<CBody>();
-                auto & t2 = *(tIt + e2.id());
-                auto & b2 = *(bIt + e2.id());
-
-                if (t1.p.distSq(t2.p) > (b1.r + b2.r)*(b1.r + b2.r)) { continue; }
-                if (e1.id() == e2.id()) { continue; }
-
-                // calculate the actual distance and overlap between circles
-                double dist = t1.p.dist(t2.p);
-                double overlap = (b1.r + b2.r) - dist;
-
-                // circles overlap if the overlap is positive
-                if (overlap > m_overlapThreshold)
-                {
-                    if (dist == 0) {
-                        // AV: Circles are coincident.  If unchecked, this leads to division by zero below.  
-                        // Arbitrarily perturb body 1 by plus-or-minus 1 in x and y. 
-                        t1.p.x += 1 - (rand() % 3);
-                        t1.p.y += 1 - (rand() % 3);
-                        continue;
-                    }
-
-                    // record that a collision took place between these two objects
-                    m_collisions.push_back({ &t1, &t2, &b1, &b2 });
-
-                    // calculate the static collision resolution (direct position modifier)
-                    // scale how much we push each circle back in the static collision by mass ratio
-                    Vec2 delta1 = (t1.p - t2.p) / dist * overlap * (b2.m / (b1.m + b2.m));
-                    Vec2 delta2 = (t1.p - t2.p) / dist * overlap * (b1.m / (b1.m + b2.m));
-
-                    // apply the static collision resolution and record collision
-                    t1.p += delta1; 
-                    t2.p -= delta2;
-                    b1.collided = true;
-                    b2.collided = true;
-
-                    // If both circlebodys belongs to robots, then slow both of them
-                    if (e1.hasComponent<CPlowBody>() && e2.hasComponent<CPlowBody>()) {
-                        auto & steer1 = e1.getComponent<CSteer>();
-                        auto & steer2 = e2.getComponent<CSteer>();
-                        steer1.slowedCount = SLOWED_ROBOT_COUNT;
-                        steer2.slowedCount = SLOWED_ROBOT_COUNT;
-                    }
-                }
             }
             // wraparound behavior
             //if (c1.p.x < 0) { c1.p.x += m_world->width(); }
@@ -338,6 +308,55 @@ class Simulator
         }
 
         return false;
+    }
+
+    bool handleCollisionBetweenCircleBodies(CCircleBody &b1, CTransform &t1, CCircleBody &b2, CTransform &t2)
+    {
+        //auto & t2 = e2.getComponent<CTransform>();
+        //auto & b2 = e2.getComponent<CBody>();
+//        auto & t2 = *(tIt + e2.id());
+//        auto & b2 = *(bIt + e2.id());
+
+        if (t1.p.distSq(t2.p) > (b1.r + b2.r)*(b1.r + b2.r)) { return; }
+        if (e1.id() == e2.id()) { return; }
+
+        // calculate the actual distance and overlap between circles
+        double dist = t1.p.dist(t2.p);
+        double overlap = (b1.r + b2.r) - dist;
+
+        // circles overlap if the overlap is positive
+        if (overlap > m_overlapThreshold)
+        {
+            if (dist == 0) {
+                // AV: Circles are coincident.  If unchecked, this leads to division by zero below.  
+                // Arbitrarily perturb body 1 by plus-or-minus 1 in x and y. 
+                t1.p.x += 1 - (rand() % 3);
+                t1.p.y += 1 - (rand() % 3);
+                return;
+            }
+
+            // record that a collision took place between these two objects
+            m_collisions.push_back({ &t1, &t2, &b1, &b2 });
+
+            // calculate the static collision resolution (direct position modifier)
+            // scale how much we push each circle back in the static collision by mass ratio
+            Vec2 delta1 = (t1.p - t2.p) / dist * overlap * (b2.m / (b1.m + b2.m));
+            Vec2 delta2 = (t1.p - t2.p) / dist * overlap * (b1.m / (b1.m + b2.m));
+
+            // apply the static collision resolution and record collision
+            t1.p += delta1; 
+            t2.p -= delta2;
+            b1.collided = true;
+            b2.collided = true;
+
+            // If both circlebodys belongs to robots, then slow both of them
+            if (e1.hasComponent<CPlowBody>() && e2.hasComponent<CPlowBody>()) {
+                auto & steer1 = e1.getComponent<CSteer>();
+                auto & steer2 = e2.getComponent<CSteer>();
+                steer1.slowedCount = SLOWED_ROBOT_COUNT;
+                steer2.slowedCount = SLOWED_ROBOT_COUNT;
+            }
+        }
     }
 
     void appendTo(std::vector<Entity> & src, std::vector<Entity> & dest)

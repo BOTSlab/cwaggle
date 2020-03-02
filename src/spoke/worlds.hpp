@@ -68,7 +68,7 @@ return true;
         }
 
         int robotRadius = (int) config.robotRadius;
-        double innerShellRadius = 0.8*robotRadius;
+        double innerShellRadius = 0.5*robotRadius;
  
         Entity robot = world->addEntity("robot");
 
