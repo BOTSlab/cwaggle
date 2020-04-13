@@ -289,24 +289,6 @@ class GUI
             drawLine(t.p, prow, sf::Color(255, 255, 255));
         }
 
-        // draw robot spokes
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CSpoke>()) { continue; }
-
-            auto & t = e.getComponent<CTransform>();
-            auto & spoke = e.getComponent<CSpoke>();
-            auto & c = e.getComponent<CColor>();
-            auto & steer = e.getComponent<CSteer>();
-    
-            double x0 = t.p.x + spoke.innerRadius * cos(steer.angle + spoke.innerAngle);
-            double y0 = t.p.y + spoke.innerRadius * sin(steer.angle + spoke.innerAngle);
-            double x1 = t.p.x + spoke.outerRadius * cos(steer.angle + spoke.outerAngle);
-            double y1 = t.p.y + spoke.outerRadius * sin(steer.angle + spoke.outerAngle);
-
-            drawLine(Vec2(x0, y0), Vec2(x1, y1), sf::Color(255, 255, 255));
-        }
-
         // draw circles
         for (auto e : m_sim->getWorld()->getEntities())
         {

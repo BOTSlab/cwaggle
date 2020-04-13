@@ -152,30 +152,6 @@ class Simulator
                     steer.slowedCount = SLOWED_ROBOT_COUNT;
                 }
             }
-
-            // AV: step 1.75: check collisions of all circles against all robots with spokes
-            for (auto & e : m_world->getEntities("robot"))
-            {
-                if (!e.hasComponent<CSpoke>()) { continue; }
-
-                // Do not check with collisions between a robot's CircleBody and its own spoke.
-                if (e1.id() == e.id()) { continue; }
-
-                auto & t = e.getComponent<CTransform>();
-                auto & cb = e.getComponent<CCircleBody>();
-                auto & steer = e.getComponent<CSteer>();
-                auto & spoke = e.getComponent<CSpoke>();
-
-                // We create (but do not store) a CLineBody object used to check
-                // for collision with the current circle (b1).
-                double x0 = t.p.x + spoke.innerRadius * cos(steer.angle + spoke.innerAngle);
-                double y0 = t.p.y + spoke.innerRadius * sin(steer.angle + spoke.innerAngle);
-                double x1 = t.p.x + spoke.outerRadius * cos(steer.angle + spoke.outerAngle);
-                double y1 = t.p.y + spoke.outerRadius * sin(steer.angle + spoke.outerAngle);
-                CLineBody spokeLineBody(Vec2(x0, y0), Vec2(x1, y1), 1.0);
-
-                bool collided = handleCollisionWithLineBody(b1, t1, spokeLineBody, false);
-            }
             
             // if this circle hasn't moved, we don't need to check collisions for it
             if (!t1.moved) { continue; }
