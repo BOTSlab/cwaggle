@@ -43,14 +43,14 @@ struct SensorReading
         ss << "mOppNest: " << midOppNest << "\n";
         ss << "rOppNest: " << rightOppNest << "\n";
         */
-        ss << "puckLeft: " << leftPucks << "\n";
-        //ss << "rPuck: " << rightPucks << "\n\n";
+        ss << "leftPucks: " << leftPucks << "\n";
+        ss << "rightPucks: " << rightPucks << "\n\n";
         /*
         ss << "lObst: " << leftObstacle << "\n";
         ss << "rObst: " << rightObstacle << "\n";
         */
-        ss << "robotLeft: " << leftRobots << "\n";
-        ss << "robotRight: " << rightRobots;
+        ss << "leftRobots: " << leftRobots << "\n";
+        ss << "rightRobots: " << rightRobots;
 
         /*
         for (std::vector<bool>::const_iterator i = image.begin(); i != image.end(); ++i)

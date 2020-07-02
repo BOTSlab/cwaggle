@@ -575,7 +575,7 @@ public:
                 // Compute difference between current cell and given value.
                 double diff = fabs(grid.get(x, y) - contourValue);
 
-                if (diff > 0.1)
+                if (diff > 0.3)
                     continue;
 
                 // Count how many neighbour cells have a smaller difference.
