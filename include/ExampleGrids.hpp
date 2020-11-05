@@ -8,7 +8,6 @@
 
 namespace ExampleGrids
 {
-    // populates a world with a grid of pucks
     ValueGrid GetInverseCenterDistanceGrid(size_t width, size_t height)
     {
         ValueGrid grid(width, height);

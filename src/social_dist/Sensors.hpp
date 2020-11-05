@@ -43,8 +43,8 @@ public:
 
 class GridSensor : public Sensor
 {
-    size_t m_gridIndex;    
 public:
+    size_t m_gridIndex;    
 
     GridSensor(size_t ownerID, size_t gridIndex, double angle, double distance)
         : Sensor(ownerID, angle, distance)
@@ -121,12 +121,18 @@ public:
     double m_distance = 0;
     double m_radius = 0;
     bool m_within = true;
+    double m_distanceOffset = 0;
+    bool m_centredOnTerritory = false;
+    double m_centredOnTerritoryRadiusOffset = 0;
 
-    SensingCircle(double a, double d, double r, bool within) 
+    SensingCircle(double a, double d, double r, bool within, double offset=0, bool centredOnTerritory=false, double radiusOffset=0) 
         : m_angle(a)
         , m_distance(d)
         , m_radius(r)
         , m_within(within)
+        , m_distanceOffset(offset)
+        , m_centredOnTerritory(centredOnTerritory)
+        , m_centredOnTerritoryRadiusOffset(radiusOffset)
     { }  
 };
 
@@ -138,26 +144,31 @@ protected:
     size_t m_ownerID;       // entity that owns this sensor
 public:
     std::string m_typeName;
-    std::string m_sideName;
+    std::string m_name;
     std::vector<SensingCircle> m_circles;
+//    bool m_mustTouchLeft = false;
+//    bool m_mustTouchRight = false;
+//    double m_leftCentreThreshold, m_rightCentreThreshold;
 protected:
-    bool m_mustTouchLeft = false;
-    bool m_mustTouchRight = false;
-    double m_leftCentreThreshold, m_rightCentreThreshold;
+    bool m_senseMaxGridValue = false;
+    int m_gridIndex = 0;
 
 public:
     FancySensor() {}
-    FancySensor(size_t ownerID, std::string typeName, std::string sideName,
-                std::vector<SensingCircle> inCircles, bool mustTouchLeft, bool mustTouchRight,
-                double leftCentreThreshold, double rightCentreThreshold) 
+    FancySensor(size_t ownerID, std::string typeName, std::string name,
+                std::vector<SensingCircle> inCircles, //bool mustTouchLeft, bool mustTouchRight,
+//                double leftCentreThreshold, double rightCentreThreshold, 
+                bool senseMaxGridValue=false, int gridIndex=0)
         : m_ownerID(ownerID)
         , m_typeName(typeName)
-        , m_sideName(sideName)
+        , m_name(name)
         , m_circles(inCircles)
-        , m_mustTouchLeft(mustTouchLeft)
-        , m_mustTouchRight(mustTouchRight)
-        , m_leftCentreThreshold(leftCentreThreshold)
-        , m_rightCentreThreshold(rightCentreThreshold)
+//        , m_mustTouchLeft(mustTouchLeft)
+//        , m_mustTouchRight(mustTouchRight)
+//        , m_leftCentreThreshold(leftCentreThreshold)
+//        , m_rightCentreThreshold(rightCentreThreshold)
+        , m_senseMaxGridValue(senseMaxGridValue)
+        , m_gridIndex(gridIndex)
     { }
 
     inline int getNumberOfCircles()
@@ -167,27 +178,42 @@ public:
 
     inline double getCircleRadius(int index)
     {
+        if (m_circles[index].m_centredOnTerritory) {
+            auto & territory = Entity(m_ownerID).getComponent<CTerritory>();
+            return territory.radius + m_circles[index].m_centredOnTerritoryRadiusOffset;
+        }
         return m_circles[index].m_radius;
     }
 
-    inline Vec2 getCirclePosition(int index)
+    inline Vec2 getCirclePosition(int index, std::shared_ptr<World> world)
     {
+        double distance = m_circles[index].m_distance + m_circles[index].m_distanceOffset;
+
+        if (m_circles[index].m_centredOnTerritory) {
+            // This sensing circle's position is relative to the centre of the territory, not the robot's position.
+            auto & territory = Entity(m_ownerID).getComponent<CTerritory>();
+            return Vec2(territory.cx, territory.cy);
+        }
+
         const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
         double sumAngle = Entity(m_ownerID).getComponent<CSteer>().angle + m_circles[index].m_angle;
-        return pos + Vec2(m_circles[index].m_distance * cos(sumAngle), m_circles[index].m_distance * sin(sumAngle));
+        return pos + Vec2(distance * cos(sumAngle), distance * sin(sumAngle));
     }
 
     inline double getReading(std::shared_ptr<World> world)
     {
-        double sum = 0;
+        double returnValue = 0;
 
         std::vector<Vec2> posVector;
         for (int i=0; i<m_circles.size(); i++)
-            posVector.push_back(getCirclePosition(i));
+            posVector.push_back(getCirclePosition(i, world));
 
         // Position and angle of robot.  Needed only if m_mustBeLeft || m_mustBeRight.
-        const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
-        double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
+//        const Vec2 & pos = Entity(m_ownerID).getComponent<CTransform>().p;
+//        double theta = Entity(m_ownerID).getComponent<CSteer>().angle;
+
+        // Robot's territory.
+        auto & territory = Entity(m_ownerID).getComponent<CTerritory>();
 
         for (auto e : world->getEntities(m_typeName))
         {
@@ -196,6 +222,14 @@ public:
             auto & t = e.getComponent<CTransform>();
             auto & b = e.getComponent<CCircleBody>();
 
+            // Check against the territory.
+            /*
+            if (t.p.distSq(Vec2(territory.cx, territory.cy)) > (territory.radius + b.r)*(territory.radius + b.r)) {
+                objectSensed = false;
+                continue;
+            }
+            */
+
             // Go through all sensing circles and determine whether the current position passes
             // the test of being within/without that circle (according to the circle's m_within).
             // Note that for testing to be without a circle, we test against a circle whose radius 
@@ -203,32 +237,46 @@ public:
             bool objectSensed = true;
             for (int i=0; i<m_circles.size(); i++) {
                 SensingCircle c = m_circles[i];
+                double radius = c.m_radius;
+                if (c.m_centredOnTerritory)
+                    // If a sensing circle is centred on a territory, then instead of using its 'm_radius' we
+                    // use the territory's radius + the 'm_centredOnTerritoryRadiusOffset'
+                    radius = territory.radius + c.m_centredOnTerritoryRadiusOffset;
 
-                if ((c.m_within && t.p.distSq(posVector[i]) > (c.m_radius + b.r)*(c.m_radius + b.r))
+                if ((c.m_within && t.p.distSq(posVector[i]) > (radius + b.r)*(radius + b.r))
                     ||
-                    (!c.m_within && t.p.distSq(posVector[i]) < (c.m_radius - b.r)*(c.m_radius - b.r)))
+                    (!c.m_within && t.p.distSq(posVector[i]) < (radius - b.r)*(radius - b.r)))
                 {
                     objectSensed = false;
+                    continue;
                 }
             }
 
-            if (m_mustTouchLeft || m_mustTouchRight) {
-                // Y-coordinate w.r.t. robot ref. frame
-                double y = -sin(theta) * (t.p.x - pos.x) + cos(theta) * (t.p.y - pos.y);
-                if (m_mustTouchLeft && y - b.r > m_leftCentreThreshold)
-                    objectSensed = false;
-                if (m_mustTouchRight && y + b.r < -m_rightCentreThreshold)
-                    objectSensed = false;
-            }
+//            if (m_mustTouchLeft || m_mustTouchRight) {
+//                // Y-coordinate w.r.t. robot ref. frame
+//                double y = -sin(theta) * (t.p.x - pos.x) + cos(theta) * (t.p.y - pos.y);
+//                if (m_mustTouchLeft && y - b.r > m_leftCentreThreshold)
+//                    objectSensed = false;
+//                if (m_mustTouchRight && y + b.r < -m_rightCentreThreshold)
+//                    objectSensed = false;
+//            }
 
             if (objectSensed)
             {
-                sum += 1.0;
+                if (m_senseMaxGridValue) {
+                    // Instead of a sum of objects, get the maximum grid value 
+                    size_t gX = (size_t)round(world->getGrid(m_gridIndex).width()  * t.p.x / world->width());
+                    size_t gY = (size_t)round(world->getGrid(m_gridIndex).height() * t.p.y / world->height());
+                    returnValue = fmax(returnValue, world->getGrid(m_gridIndex).get(gX, gY));
+                } else {
+                    returnValue += 1.0;
+                }
+
                 //std::cout << t.p.x << "_" << t.p.y << std::endl;
-                //e.addComponent<CColor>(0, rand()%255, 0, 255);
+                //e.addComponent<CColor>(0, 0, rand()%255, 255);
             }
         }
-        return sum;
+        return returnValue;
     }
 };
 

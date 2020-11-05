@@ -15,7 +15,6 @@ typedef std::tuple <
     std::vector<CCircleShape>,
     std::vector<CLineBody>,
     std::vector<CController>,
-    std::vector<CSensorArray>,
     std::vector<CRobotType>,
     std::vector<CSteer>,
     std::vector<CVectorIndicator>,
@@ -39,7 +38,6 @@ class EntityMemoryPool
         getData<CCircleBody>().resize(MaxEntities);
         getData<CCircleShape>().resize(MaxEntities);
         getData<CLineBody>().resize(MaxEntities);
-        getData<CSensorArray>().resize(MaxEntities);
         getData<CSteer>().resize(MaxEntities);
         getData<CRobotType>().resize(MaxEntities);
         getData<CController>().resize(MaxEntities);
@@ -91,7 +89,6 @@ public:
             instance.getData<CCircleBody>()[i] = {};
             instance.getData<CCircleShape>()[i] = {};
             instance.getData<CLineBody>()[i] = {};
-            instance.getData<CSensorArray>()[i] = {};
             instance.getData<CSteer>()[i] = {};
             instance.getData<CRobotType>()[i] = {};
             instance.getData<CController>()[i] = {};
@@ -114,7 +111,6 @@ public:
         getData<CCircleBody>()[entityIndex]   = {};
         getData<CCircleShape>()[entityIndex]  = {};
         getData<CLineBody>()[entityIndex]     = {};
-        getData<CSensorArray>()[entityIndex]  = {};
         getData<CColor>()[entityIndex]        = {};
         getData<CRobotType>()[entityIndex]    = {};
         getData<CController>()[entityIndex]   = {};

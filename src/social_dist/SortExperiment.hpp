@@ -11,7 +11,9 @@
 #include "configs.hpp"
 #include "worlds.hpp"
 #include "controllers.hpp"
-#include "MyEval.hpp"
+#include "SortEval.hpp"
+
+using namespace std;
 
 // Kludge to get the up/down arrows of the GUI to be able to modify the rendering
 // speed.
@@ -61,6 +63,15 @@ void randomizeWorld(std::default_random_engine generator, double robotRadius, do
 
         transform.p.x = robotRadius + robotXrng(generator);
         transform.p.y = robotRadius + robotYrng(generator);
+
+        // Modify the territory to be centred at this new position.
+        auto & territory = entity.getComponent<CTerritory>();
+        territory.cx = transform.p.x;
+        territory.cy = transform.p.y;
+
+territory.cx = world->width() / 2.0;
+territory.cy = world->height() / 2.0;
+
     }
 
     randXDomain = world->width() - 2*(int)puckRadius;
@@ -70,13 +81,18 @@ void randomizeWorld(std::default_random_engine generator, double robotRadius, do
 
     for (auto & entity : world->getEntities("red_puck")) { 
         auto & transform = entity.getComponent<CTransform>();
+        transform.p.x = puckRadius + puckXrng(generator);
+        transform.p.y = puckRadius + puckYrng(generator);
+    }
 
+    for (auto & entity : world->getEntities("green_puck")) { 
+        auto & transform = entity.getComponent<CTransform>();
         transform.p.x = puckRadius + puckXrng(generator);
         transform.p.y = puckRadius + puckYrng(generator);
     }
 }
 
-class MyExperiment
+class SortExperiment
 {
     ExperimentConfig            m_config;
     ControllerConfig            m_ctrlConfig;
@@ -99,6 +115,10 @@ class MyExperiment
 
     void addRobotControllers()
     {
+        //double normPuckRadius = m_config.puckRadius / (0.5 * sqrt(2.0) * world->height());
+
+        //double delta = 1.0 / m_config.numRobots;
+        //double threshold = delta;
         for (auto e : world->getEntities("robot")) {
             /*
             ControllerConfig controllerConfig;
@@ -111,33 +131,32 @@ class MyExperiment
             controllerConfig.thresholdVariant = m_thresholdVariant;
             controllerConfig.defaultVariant = m_defaultVariant;
             */
-            e.addComponent<CController>(std::make_shared<EntityController_OrbitalConstructionVariant>(e, world, m_config.threshold, 
-                                                                                                      m_ctrlConfig));
+            e.addComponent<CController>(std::make_shared<EntityController_OrbitalSorting>(e, world, m_ctrlConfig, m_config.puckRadius));
+            //if (m_gui)
+            //    m_gui->addContour(threshold);
+
+            //threshold += delta;
         }
 
-        if (m_gui) {
-            m_gui->addContour(m_config.threshold);
-            m_gui->addContour(m_config.threshold/2);
-        }
     }
 
     void resetSimulator()
     {
         m_aborted = false;
 
-        // We run out of memory if we don't do this.
-        // EntityMemoryPool::Reset();
-
         if (world == NULL) {
-            if (m_config.worldName == "lgtv") {
-                world = orbital_av_world::GetLGTVWorld(m_config);
+            if (m_config.worldName == "sort") {
+                world = sort_world::GetWorld(m_config);
             } else {
                 std::cerr << "Problem: unknown world parameter in config file\n";            
             }
-        } else {
-            // Entities in world need to be randomly repositioned.
-            randomizeWorld(m_rng, m_config.robotRadius, m_config.puckRadius);
         }
+
+        // The easiest thing would be to delete and then recreate the world.  But storage
+        // seems not be relinquished.  Tried creating this, but it didn 't help:
+        //      EntityMemoryPool::Reset();
+        // Soo instead we randomly repositioned the existing robots and pucks.
+        randomizeWorld(m_rng, m_config.robotRadius, m_config.puckRadius);
 
         m_sim = std::make_shared<Simulator>(world);
 
@@ -174,13 +193,14 @@ class MyExperiment
     
 public:
 
-    MyExperiment(ExperimentConfig config, ControllerConfig ctrlConfig, int trialIndex, int rngSeed)
+    SortExperiment(ExperimentConfig config, ControllerConfig ctrlConfig, int trialIndex, int rngSeed)
         : m_config(config)
         , m_ctrlConfig(ctrlConfig)
         , m_trialIndex(trialIndex)
         , m_rng(rngSeed)
         , m_aborted(false)
     {
+        //cout << "rngSeed: " << rngSeed << endl;
         if (m_config.writePlotSkip)
         {
             std::stringstream plotFilename;
@@ -215,7 +235,28 @@ public:
 
             // have the action apply its effects to the entity
             action.doAction(robot, simTimeStepAdjusted);
+
+/*
+if (m_gui && m_gui->m_sensors)
+{
+m_gui->clearContours();
+auto base = robot.getComponent<CController>().controller;
+auto controller = std::dynamic_pointer_cast<EntityController_OrbitalSorting>(base);
+m_gui->addContour(controller->m_targetThreshold);
+}
+*/
         }
+
+// REMOVE PUCKS IN THE TOP OR BOTTOM HALF.
+/*
+for (auto & puck : m_sim->getWorld()->getEntities("red_puck"))
+{
+    auto & transform = puck.getComponent<CTransform>();
+    if (transform.p.y > m_sim->getWorld()->height()/2) {
+        transform.p.y = -100;
+    }
+}
+*/
 
         // call the world physics simulation update
         // parameter = how much sim time should pass (default 1.0)
@@ -228,13 +269,13 @@ public:
         while (running)
         {
             // Figure out what evaluation to use depending upon the type of world we're running.
-            if (m_config.worldName == "lgtv") {
-                m_eval = MyEval::PuckGridValues(world, "red_puck", 1, true);
+            if (m_config.worldName == "sort") {
+                m_eval = SortEval::PuckGridValues(world, "red_puck", 1, true);
             } /*else if (m_config.worldName == "simple" || m_config.worldName == "wall") {
-                m_eval = MyEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(300,300));
+                m_eval = SortEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(300,300));
             } else if (m_config.worldName == "symmetric") {
-                m_eval = MyEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(150,150))
-                       + MyEval::PuckSSDFromIdealPosition(world, "green_puck", Vec2(450,150));
+                m_eval = SortEval::PuckSSDFromIdealPosition(world, "red_puck", Vec2(150,150))
+                       + SortEval::PuckSSDFromIdealPosition(world, "green_puck", Vec2(450,150));
             } */else {
                 std::cerr << "Problem: unknown world parameter in config file\n";            
             }
@@ -266,6 +307,12 @@ public:
 
                 // draw gui
                 m_gui->update();
+
+// RESET PUCK COLOURS
+for (auto & puck : m_sim->getWorld()->getEntities("red_puck"))
+    puck.addComponent<CColor>(255, 44, 44, 255);
+for (auto & puck : m_sim->getWorld()->getEntities("green_puck"))
+    puck.addComponent<CColor>(44, 255, 44, 255);
 
                 if (m_config.captureScreenshots) {
                     std::stringstream filename;
@@ -309,7 +356,7 @@ public:
 };
 
 
-namespace MyExperiments
+namespace SortExperiments
 {
     double runExperiment(ExperimentConfig config, ControllerConfig ctrlConfig) {
         // BAD: These are declared at the top of this file and therefore don't belong to this class specifically.
@@ -326,13 +373,15 @@ namespace MyExperiments
             // run 1000 trials.
             bool aborted = true;
             for (int seedAdjustment=0; aborted; seedAdjustment += 1000) {
-                MyExperiment exp(config, ctrlConfig, i, i+seedAdjustment);
-                exp.run();
-                exp.printResults();
-                aborted = exp.wasAborted();
+                SortExperiment exp(config, ctrlConfig, i, i+seedAdjustment+1); // Not sure why we need this +1
+                exp.run();                                                     // but without it trial 0
+                exp.printResults();                                            // and 1 seem to have (almost)
+                aborted = exp.wasAborted();                                    // the same initial conditions.
                 if (!aborted) {
                     //cerr << exp.getEvaluation() << endl;
                     avgEval += exp.getEvaluation();
+                } else {
+                    std::cout << "Trial aborted." << "\n";
                 }
 
                 // Give up on this experiment (conduct no more trials) if the last evaluation was poor.
@@ -352,7 +401,7 @@ namespace MyExperiments
 
     double runWithDefaultConfig(ControllerConfig ctrlConfig) {
         // Read the config file name from console if it exists
-        std::string configFile = "lgtv_config.txt";
+        std::string configFile = "sort_config.txt";
         ExperimentConfig config;
         config.load(configFile);
 

@@ -4,7 +4,6 @@
 #include "EntityControllers.hpp"
 #include "World.hpp"
 #include "ExampleGrids.hpp"
-#include "Sensors.hpp"
 
 namespace ExampleWorlds
 {
@@ -28,7 +27,7 @@ namespace ExampleWorlds
         {
             for (size_t j = 0; j < 90; j += skip)
             {                
-                Entity puck = world->addEntity("puck");
+                Entity puck = world->addEntity("red_puck");
                 puck.addComponent<CTransform>(Vec2(400.0 + i * 10, 100.0 + j * 10));
                 puck.addComponent<CCircleBody>(skip * 4.0);
                 puck.addComponent<CCircleShape>(skip * 4.0);
@@ -67,7 +66,7 @@ namespace ExampleWorlds
         {
             for (size_t j = 0; j < 52; j += skip)
             {
-                Entity puck = world->addEntity("puck");
+                Entity puck = world->addEntity("red_puck");
                 puck.addComponent<CTransform>(Vec2(400.0 + i * 10, 100.0 + j * 10));
                 puck.addComponent<CCircleBody>(skip * 4.0);
                 puck.addComponent<CCircleShape>(skip * 4.0);
@@ -100,19 +99,6 @@ namespace ExampleWorlds
             robot.addComponent<CCircleShape>(robotSize);
             robot.addComponent<CColor>(0, 100, 200, 255);
             robot.addComponent<CRobotType>(0);
-
-            auto & sensors = robot.addComponent<CSensorArray>();
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, 45, robotSize * 2));
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, 0, robotSize * 2));
-            sensors.gridSensors.push_back(std::make_shared<GridSensor>(robot, 0, -45, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", -30, robotSize * 4, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", 30, robotSize * 4, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", 60, robotSize * 7, robotSize * 2));
-            sensors.puckSensors.push_back(std::make_shared<PuckSensor>(robot, "red_puck", -60, robotSize * 7, robotSize * 2));
-            sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, 45, robotSize, robotSize/4));
-            sensors.obstacleSensors.push_back(std::make_shared<ObstacleSensor>(robot, -45, robotSize, robotSize/4));
-            sensors.robotSensors.push_back(std::make_shared<RobotSensor>(robot, 30, robotSize * 2, robotSize));
-            sensors.robotSensors.push_back(std::make_shared<RobotSensor>(robot, -30, robotSize * 2, robotSize));
         }
 
         // add the pucks
@@ -122,14 +108,15 @@ namespace ExampleWorlds
             int rHeight = rand() % (int)(height - 8 * puckSize);
             Vec2 pPos(4*puckSize + rWidth, 4*puckSize + rHeight);
 
-            Entity puck = world->addEntity("puck");
+            Entity puck = world->addEntity("red_puck");
             puck.addComponent<CTransform>(pPos);
             puck.addComponent<CCircleBody>(puckSize);
             puck.addComponent<CCircleShape>(puckSize);
             puck.addComponent<CColor>(200, 44, 44, 255);
         }
         
-        world->addGrid(ExampleGrids::GetInverseCenterDistanceGrid(64, 64));
+//        world->addGrid(ExampleGrids::GetInverseCenterDistanceGrid(64, 64));
+        world->addGrid(ExampleGrids::GetInverseCenterDistanceGrid(width, height));
 
         world->update();
         return world;

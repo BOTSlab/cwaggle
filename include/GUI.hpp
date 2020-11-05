@@ -7,7 +7,6 @@
 #include "Vec2.hpp"
 #include "Simulator.hpp"
 #include "ExampleWorlds.hpp"
-#include "SensorTools.hpp"
 
 typedef void (*callback_function)(void);
 
@@ -21,7 +20,7 @@ class GUI
     sf::Vector2f        m_mousePos;
     Entity              m_selected;
     bool                m_debug = false;
-    bool                m_sensors = false;
+private:
     std::string         m_status = "";
     bool                m_leftMouseDown = false;
     
@@ -89,9 +88,13 @@ class GUI
         m_backgroundTexture.loadFromImage(m_occupancyImage);
         m_backgroundSprite.setTexture(m_backgroundTexture);
 
-        // Make grid image 0 the default
         //m_backgroundImagePtr = NULL;
-        m_backgroundImagePtr = &m_gridImages[0];
+        // Make grid image 0 the default
+        //m_backgroundImagePtr = &m_gridImages[0];
+
+        // Make contour image the default
+        //m_backgroundImagePtr = NULL;
+        m_backgroundImagePtr = &m_contourImage;
     }
 
     void rotateRobots(double angle)
@@ -122,22 +125,24 @@ class GUI
                 {
                     case sf::Keyboard::Escape: exit(0); break;
                     case sf::Keyboard::D:      m_debug = !m_debug; break;
-                    case sf::Keyboard::S:      m_sensors = !m_sensors; break;
                     case sf::Keyboard::C:
                         m_backgroundImagePtr = &m_contourImage;
                         break;
                     case sf::Keyboard::O:
                         m_backgroundImagePtr = &m_occupancyImage;
                         break;
-                    case sf::Keyboard::R:
+                    case sf::Keyboard::Num0:
                         m_backgroundImagePtr = &m_gridImages[0];
                         break;
-                    case sf::Keyboard::G:
+                    case sf::Keyboard::Num1:
                         m_backgroundImagePtr = &m_gridImages[1];
                         break;
-                    case sf::Keyboard::Num0:
-                        m_backgroundImagePtr = NULL;
+                    case sf::Keyboard::Num2:
+                        m_backgroundImagePtr = &m_gridImages[2];
                         break;
+                    //case sf::Keyboard::Num0:
+                    //    m_backgroundImagePtr = NULL;
+                    //    break;
                     case sf::Keyboard::Left:
                         rotateRobots(-0.1);
                         break;
@@ -263,7 +268,6 @@ class GUI
             m_window.draw(m_backgroundSprite);
         }
 
- 
         // draw robot plows
         for (auto e : m_sim->getWorld()->getEntities())
         {
@@ -277,7 +281,7 @@ class GUI
             pb.shape.setPosition((float)t.p.x, (float)t.p.y);
             pb.shape.setRotation(steer.angle * 180.0 / M_PI);
             if (steer.slowedCount > 0) {
-                pb.shape.setFillColor(sf::Color(255, 0, 0));                
+                pb.shape.setFillColor(sf::Color(0, 0, 255));                
             } else {
                 pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));                
             }
@@ -324,110 +328,6 @@ class GUI
             drawLine(t.p, velPoint, sf::Color(255, 255, 255));
         }
 
-        // draw robot sensors
-        if (m_sensors)
-        {
-            float gridSensorRadius = 2;
-
-            for (auto robot : m_sim->getWorld()->getEntities("robot"))
-            {
-                if (!m_selected || robot.id() != m_selected.id()) { continue; }
-
-                if (!robot.hasComponent<CSensorArray>()) { continue; }
-                auto & sensors = robot.getComponent<CSensorArray>();
-                auto & c = robot.getComponent<CColor>();
-
-                // Position and angle of robot.
-                const Vec2 & pos = robot.getComponent<CTransform>().p;
-                double theta = robot.getComponent<CSteer>().angle;
-
-                sf::Color grey(127, 127, 127);
-                sf::Color white(255, 255, 255);
-                for (auto sensor : sensors.cameraSensors)
-                {
-                    std::vector<bool> reading = sensor->getReading(m_sim->getWorld());
-                    for (int i = 0; i<reading.size(); i++) {
-                        Vec2 p1, p2;
-                        sensor->getSegmentStartEnd(i, p1, p2);
-                        if (reading[i])
-                            drawLine(p1, p2, white);
-                        else
-                            drawLine(p1, p2, grey);
-                    }
-                }
-
-                for (auto sensor : sensors.fancySensors)
-                {
-                    double reading = sensor->getReading(m_sim->getWorld());
-                    for (int i=0; i<sensor->getNumberOfCircles(); i++) {
-
-                        sf::CircleShape cShape((float)sensor->getCircleRadius(i), 132);
-                        if (sensor->m_typeName == "red_puck")
-                            cShape.setFillColor(sf::Color(255, 0, 0, 80)); 
-                        if (sensor->m_typeName == "robot")
-                            cShape.setFillColor(sf::Color(0, 0, 255, 80)); 
-
-                        cShape.setOrigin((float)sensor->getCircleRadius(i), (float)sensor->getCircleRadius(i));
-                        Vec2 pos = sensor->getCirclePosition(i);
-                        cShape.setPosition((float)pos.x, (float)pos.y);
-
-                        if (reading > 0) { 
-                            cShape.setOutlineThickness(1);
-                        } else { 
-                            cShape.setOutlineThickness(0);
-                        }
-                        m_window.draw(cShape);
-                    }
-                }
-
-                for (auto & sensor : sensors.gridSensors)
-                {
-                    sf::CircleShape sensorShape(gridSensorRadius, 32);
-                    sensorShape.setOrigin(gridSensorRadius, gridSensorRadius);
-                    Vec2 pos = sensor->getPosition();
-                    sensorShape.setPosition((float)pos.x, (float)pos.y);
-                    sensorShape.setFillColor(sf::Color::White);
-                    m_window.draw(sensorShape);
-                }
-
-                for (auto sensor : sensors.obstacleSensors)
-                {
-                    sf::CircleShape sensorShape((float)sensor->radius(), 32);
-                    sensorShape.setOrigin((float)sensor->radius(), (float)sensor->radius());
-                    Vec2 pos = sensor->getPosition();
-                    sensorShape.setPosition((float)pos.x, (float)pos.y);
-                    double reading = sensor->getReading(m_sim->getWorld());
-                    if (reading > 0) { sensorShape.setFillColor(sf::Color(255, 255, 255, 80)); }
-                    else { sensorShape.setFillColor(sf::Color(0, 255, 255, 80)); }
-                    m_window.draw(sensorShape);
-                }
-
-                for (auto sensor : sensors.robotSensors)
-                {
-                    sf::CircleShape sensorShape((float)sensor->radius(), 32);
-                    sensorShape.setOrigin((float)sensor->radius(), (float)sensor->radius());
-                    Vec2 pos = sensor->getPosition();
-                    sensorShape.setPosition((float)pos.x, (float)pos.y);
-                    double reading = sensor->getReading(m_sim->getWorld());
-                    if (reading > 0) { sensorShape.setFillColor(sf::Color(255, 255, 255, 80)); }
-                    else { sensorShape.setFillColor(sf::Color(255, 255, 0, 80)); }
-                    m_window.draw(sensorShape);
-                }
-
-                for (auto sensor : sensors.puckSensors)
-                {
-                    sf::CircleShape sensorShape((float)sensor->radius(), 132);
-                    sensorShape.setOrigin((float)sensor->radius(), (float)sensor->radius());
-                    Vec2 pos = sensor->getPosition();
-                    sensorShape.setPosition((float)pos.x, (float)pos.y);
-                    double reading = sensor->getReading(m_sim->getWorld());
-                    if (reading > 0) { sensorShape.setFillColor(sf::Color(255, 255, 255, 80)); }
-                    else { sensorShape.setFillColor(sf::Color(c.r, c.g, c.b, 80)); }
-                    m_window.draw(sensorShape);
-                }
-            }
-        }
-
         // Draw other robot-specific "decorations".
         for (auto robot : m_sim->getWorld()->getEntities("robot"))
         {
@@ -435,15 +335,16 @@ class GUI
             auto & s = robot.getComponent<CCircleShape>();
             auto & c = robot.getComponent<CColor>();
 
-            if (!robot.hasComponent<CVectorIndicator>()) { continue; }
+            if (robot.hasComponent<CVectorIndicator>())
+            {
+                auto & steer = robot.getComponent<CSteer>();
+                auto & vi = robot.getComponent<CVectorIndicator>();
 
-            auto & steer = robot.getComponent<CSteer>();
-            auto & vi = robot.getComponent<CVectorIndicator>();
-
-            Vec2 start(t.p.x, t.p.y);
-            Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
-                     t.p.y + vi.length * sin(steer.angle + vi.angle));
-            drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
+                Vec2 start(t.p.x, t.p.y);
+                Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
+                        t.p.y + vi.length * sin(steer.angle + vi.angle));
+                drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
+            }
         }
 
         for (auto & e : m_sim->getWorld()->getEntities("line"))
@@ -473,36 +374,6 @@ class GUI
             }
         }
 
-        if (m_selected != Entity() && m_selected.hasComponent<CSensorArray>())
-        {
-            auto & t = m_selected.getComponent<CTransform>();
-            SensorReading reading;
-            SensorTools::ReadSensorArray(m_selected, m_sim->getWorld(), reading);
-
-            sf::Text text;
-            text.setFont(m_font);
-            text.setCharacterSize(12);
-            text.setString(reading.toString());
-            //text.setPosition((float)t.p.x, (float)t.p.y);
-            float w = m_sim->getWorld()->width();
-            float h = m_sim->getWorld()->height();
-            float textX = w / 2.0f;
-            float textY = h / 2.0f;
-            text.setPosition(textX, textY);
-            text.setFillColor(sf::Color::White);
-
-            // Get a rectangle to draw in the background, making the text easier to see.
-            sf::FloatRect backgroundRect = text.getLocalBounds();
-            sf::RectangleShape background(sf::Vector2f(backgroundRect.width, backgroundRect.height));
-            background.setFillColor(sf::Color::Black);
-            sf::Transform xform = text.getTransform();
-            // TRYING TO RESCALE WINDOW BUT ITS NOT WORKING
-            //m_window.draw(background, xform.scale(1.5f, 1.5f, textX, textY));
-            m_window.draw(background, xform);
-        
-            m_window.draw(text);
-        }
-        
         // draw information
         /*
         std::stringstream ss;
@@ -594,6 +465,22 @@ public:
                 //    sf::Color white((int)(255.0 * diff), (int)(255.0 * diff), (int)(255.0 * diff));
                     m_contourImage.setPixel(x, y, white); 
                 }
+            }
+        }
+    } 
+
+    void clearContours() {
+        // If there is no grid, then there can be no contour.
+        auto & grid = m_sim->getWorld()->getGrid(0);
+        if (grid.width() == 0)
+            return;
+
+        sf::Color black(0, 0, 0);
+        for (size_t x = 0; x < grid.width(); x++)
+        {
+            for (size_t y = 0; y < grid.height(); y++)
+            {
+                m_contourImage.setPixel(x, y, black); 
             }
         }
     } 

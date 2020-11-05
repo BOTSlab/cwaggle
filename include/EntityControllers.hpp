@@ -3,7 +3,6 @@
 #include "Simulator.hpp"
 #include "Entity.hpp"
 #include "EntityAction.hpp"
-#include "SensorTools.hpp"
 
 class EntityController
 {

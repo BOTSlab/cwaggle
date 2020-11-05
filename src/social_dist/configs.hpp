@@ -13,8 +13,9 @@ struct ExperimentConfig
     double plowLength   = 60.0;
     double c1Radius     = 80.0;
     double c1Distance   = 140.0;
+    double c2Radius     = 10000.0;
+    double c2Distance   = 10000.0;
 
-    double puckViewRadius     = 1000.0;
     double robotViewRadius     = 1000.0;
 
     size_t numPucks     = 0;
@@ -31,8 +32,9 @@ struct ExperimentConfig
     std::string plotFilenameBase   = "";
     size_t numTrials = 10;
     std::string worldName = "";
-    std::string redGridFilename = "";
-    std::string greenGridFilename = "";
+    std::string grid0Filename = "";
+    std::string grid1Filename = "";
+    //std::string grid2Filename = "";
 
     size_t fakeRobots          = 0;
     size_t captureScreenshots          = 0;
@@ -54,7 +56,8 @@ struct ExperimentConfig
             else if (token == "plowLength")    { fin >> plowLength; }
             else if (token == "c1Radius")    { fin >> c1Radius; }
             else if (token == "c1Distance")    { fin >> c1Distance; }
-            else if (token == "puckViewRadius")    { fin >> puckViewRadius; }
+            else if (token == "c2Radius")    { fin >> c2Radius; }
+            else if (token == "c2Distance")    { fin >> c2Distance; }
             else if (token == "robotViewRadius")    { fin >> robotViewRadius; }
             else if (token == "gui")            { fin >> gui; }
             else if (token == "numPucks")       { fin >> numPucks; }
@@ -67,8 +70,9 @@ struct ExperimentConfig
             else if (token == "plotFilenameBase")   { fin >> plotFilenameBase; }
             else if (token == "numTrials")   { fin >> numTrials; }
             else if (token == "worldName")   { fin >> worldName; }
-            else if (token == "redGridFilename")   { fin >> redGridFilename; }
-            else if (token == "greenGridFilename")   { fin >> greenGridFilename; }
+            else if (token == "grid0Filename")   { fin >> grid0Filename; }
+            else if (token == "grid1Filename")   { fin >> grid1Filename; }
+            //else if (token == "grid2Filename")   { fin >> grid2Filename; }
             else if (token == "fakeRobots")   { fin >> fakeRobots; }
             else if (token == "captureScreenshots")   { fin >> captureScreenshots; }
             else if (token == "screenshotFilenameBase")   { fin >> screenshotFilenameBase; }
