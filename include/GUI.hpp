@@ -1,51 +1,50 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
-#include "Vec2.hpp"
 #include "Simulator.hpp"
-#include "ExampleWorlds.hpp"
+#include "Vec2.hpp"
+#include "SensorTools.hpp"
+#include "KeyboardCallback.hpp"
 
-typedef void (*callback_function)(void);
-
-class GUI
-{
+class GUI {
     std::shared_ptr<Simulator> m_sim;
-    sf::RenderWindow    m_window;           // the window we will draw to
-    sf::Font            m_font;             // the font we will use to draw
-    sf::Text            m_text;
-    sf::Clock           m_clock;
-    sf::Vector2f        m_mousePos;
-    Entity              m_selected;
-    bool                m_debug = false;
+    sf::RenderWindow m_window; // the window we will draw to
+    sf::Font m_font; // the font we will use to draw
+    sf::Text m_text;
+    sf::Clock m_clock;
+    sf::Vector2f m_mousePos;
+    Entity m_draggedEntity;
+    bool m_debug = false;
+    bool m_sensors = false;
+    size_t m_controlsHeight = 100;
+    size_t m_windowWidth;
+    size_t m_windowHeight;
+
 private:
-    std::string         m_status = "";
-    bool                m_leftMouseDown = false;
-    
-    //std::vector<sf::RectangleShape> m_gridRectangles;
+    std::string m_status = "";
+    bool m_leftMouseDown = false;
 
     // AV: For drawing a background image.
-    sf::Texture         m_backgroundTexture;
-    sf::Sprite          m_backgroundSprite;
+    sf::Texture m_backgroundTexture;
+    sf::Sprite m_backgroundSprite;
 
     // AV: To change the background image we set this
     // pointer.  A NULL value means nothing will be
     // drawn on the background.
-    sf::Image*          m_backgroundImagePtr;
+    sf::Image* m_backgroundImagePtr;
 
-    std::vector<sf::Image>          m_gridImages;
+    std::vector<sf::Image> m_gridImages;
 
     // AV: For showing contour lines of the grid.
-    sf::Image           m_contourImage;
+    sf::Image m_contourImage;
 
     // AV: For showing the occupancy of robots
-    sf::Image           m_occupancyImage;
+    sf::Image m_occupancyImage;
 
-    callback_function   m_upArrowCallback;
-    callback_function   m_downArrowCallback;
-    callback_function   m_spaceCallback;
+    KeyboardCallback* m_keyboardCallback = nullptr;
 
     void init(std::shared_ptr<Simulator> sim)
     {
@@ -60,21 +59,19 @@ private:
         int height = m_sim->getWorld()->height();
 
         // Create all images which can be used as the background.
-        for (int i=0; i< m_sim->getWorld()->getNumberOfGrids(); i++) {
-            auto & grid = m_sim->getWorld()->getGrid(i);
+        for (int i = 0; i < m_sim->getWorld()->getNumberOfGrids(); i++) {
+            auto& grid = m_sim->getWorld()->getGrid(i);
             assert(grid.width() == width);
             assert(grid.height() == height);
 
             sf::Image gridImage;
             gridImage.create(width, height);
 
-            for (size_t x = 0; x < grid.width(); x++)
-            {
-                for (size_t y = 0; y < grid.height(); y++)
-                {
+            for (size_t x = 0; x < grid.width(); x++) {
+                for (size_t y = 0; y < grid.height(); y++) {
                     uint8_t c = (uint8_t)(grid.get(x, y) * 255);
                     sf::Color color(c, c, c);
-                    gridImage.setPixel(x, y, color); 
+                    gridImage.setPixel(x, y, color);
                 }
             }
 
@@ -99,148 +96,132 @@ private:
 
     void rotateRobots(double angle)
     {
-        for (auto & entity : m_sim->getWorld()->getEntities("robot"))
-        { 
-            if (!entity.hasComponent<CSteer>()) { continue; }
-            auto & steer     = entity.getComponent<CSteer>();
+        for (auto& entity : m_sim->getWorld()->getEntities("robot")) {
+            if (!entity.hasComponent<CSteer>()) {
+                continue;
+            }
+            auto& steer = entity.getComponent<CSteer>();
             steer.angle += angle;
-        }        
+        }
     }
-        
+
     void sUserInput()
     {
         sf::Event event;
-        while (m_window.pollEvent(event))
-        {
+        while (m_window.pollEvent(event)) {
             // this event triggers when the window is closed
-            if (event.type == sf::Event::Closed)
-            {
+            if (event.type == sf::Event::Closed) {
                 exit(0);
             }
 
             // this event is triggered when a key is pressed
-            if (event.type == sf::Event::KeyPressed)
-            {
-                switch (event.key.code)
-                {
-                    case sf::Keyboard::Escape: exit(0); break;
-                    case sf::Keyboard::D:      m_debug = !m_debug; break;
-                    case sf::Keyboard::C:
-                        m_backgroundImagePtr = &m_contourImage;
-                        break;
-                    case sf::Keyboard::O:
-                        m_backgroundImagePtr = &m_occupancyImage;
-                        break;
-                    case sf::Keyboard::Num0:
-                        m_backgroundImagePtr = &m_gridImages[0];
-                        break;
-                    case sf::Keyboard::Num1:
-                        m_backgroundImagePtr = &m_gridImages[1];
-                        break;
-                    case sf::Keyboard::Num2:
-                        m_backgroundImagePtr = &m_gridImages[2];
-                        break;
-                    //case sf::Keyboard::Num0:
-                    //    m_backgroundImagePtr = NULL;
-                    //    break;
-                    case sf::Keyboard::Left:
-                        rotateRobots(-0.1);
-                        break;
-                    case sf::Keyboard::Right:
-                        rotateRobots(0.1);
-                        break;
-                    case sf::Keyboard::Up:
-                        m_upArrowCallback();
-                        break;
-                    case sf::Keyboard::Down:
-                        m_downArrowCallback();
-                        break;
-                    case sf::Keyboard::Space:
-                        m_spaceCallback();
-                        break;
+            if (event.type == sf::Event::KeyPressed) {
 
-                    default: break;
+                if (m_keyboardCallback != nullptr)
+                    m_keyboardCallback->keyHandler(event.key.code);
+
+                switch (event.key.code) {
+                case sf::Keyboard::Escape:
+                    exit(0);
+                    break;
+                case sf::Keyboard::D:
+                    m_debug = !m_debug;
+                    break;
+                case sf::Keyboard::S:
+                    m_sensors = !m_sensors;
+                    break;
+                case sf::Keyboard::C:
+                    m_backgroundImagePtr = &m_contourImage;
+                    break;
+                case sf::Keyboard::O:
+                    m_backgroundImagePtr = &m_occupancyImage;
+                    break;
+                case sf::Keyboard::Num0:
+                    m_backgroundImagePtr = &m_gridImages[0];
+                    break;
+                case sf::Keyboard::Num1:
+                    m_backgroundImagePtr = &m_gridImages[1];
+                    break;
+                case sf::Keyboard::Num2:
+                    m_backgroundImagePtr = &m_gridImages[2];
+                    break;
+                case sf::Keyboard::Num3:
+                    m_backgroundImagePtr = &m_gridImages[3];
+                    break;
+                case sf::Keyboard::Num4:
+                    m_backgroundImagePtr = &m_gridImages[4];
+                    break;
+                case sf::Keyboard::Num5:
+                    m_backgroundImagePtr = &m_gridImages[5];
+                    break;
+                //case sf::Keyboard::Num0:
+                //    m_backgroundImagePtr = NULL;
+                //    break;
+                case sf::Keyboard::Left:
+                    rotateRobots(-0.15);
+                    break;
+                case sf::Keyboard::Right:
+                    rotateRobots(0.15);
+                    break;
+
+                default:
+                    break;
                 }
             }
 
-            if (event.type == sf::Event::MouseButtonPressed)
-            {
-                if (event.mouseButton.button == sf::Mouse::Left)
-                {
-                    m_leftMouseDown = true;
-                }
-
-                if (event.mouseButton.button == sf::Mouse::Right)
-                {
-                    for (auto e : m_sim->getWorld()->getEntities())
-                    {
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    for (auto e : m_sim->getWorld()->getEntities()) {
                         Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
-                        if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
-                        {
-                            // Toggle selection.
-                            if (m_selected && m_selected.id() == e.id())
-                                m_selected = Entity();
-                            else
-                                m_selected = e;
-                            break;
-                        }
-                    }
-
-                }
-
-                /*
-                if (event.mouseButton.button == sf::Mouse::Right)
-                {
-                    for (auto & e : m_sim->getWorld()->getEntities())
-                    {
-                        Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
-                        if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
-                        {
-                            if (e.hasComponent<CSteer>()) {
-                                auto & steer = e.getComponent<CSteer>();
-                                steer.frozen = !steer.frozen;
-                            }
+                        if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r) {
+                            m_draggedEntity = e;
                             break;
                         }
                     }
                 }
-                */
-            }
 
-            if (event.type == sf::Event::MouseButtonReleased)
-            {
-                if (event.mouseButton.button == sf::Mouse::Left)
-                {
-                    m_leftMouseDown = false;
+                // Right-click modifies an entity's ControllerVis object (if it has one)
+                if (event.mouseButton.button == sf::Mouse::Right) {
+                    for (auto e : m_sim->getWorld()->getEntities()) {
+                        if (!e.hasComponent<CControllerVis>()) { continue; }
+
+                        Vec2 mPos((double)event.mouseButton.x, (double)event.mouseButton.y);
+                        if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r) {
+                            // Toggle the selected status.
+                            e.getComponent<CControllerVis>().selected = 
+                                !(e.getComponent<CControllerVis>().selected);
+                            break;
+                        }
+                    }
                 }
-
             }
 
-            if (event.type == sf::Event::MouseMoved && m_leftMouseDown)
-            {
+            if (event.type == sf::Event::MouseButtonReleased) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    m_draggedEntity = Entity();
+                }
+            }
+
+            if (event.type == sf::Event::MouseMoved) {
                 m_mousePos = sf::Vector2f((float)event.mouseMove.x, (float)event.mouseMove.y);
-
-                for (auto e : m_sim->getWorld()->getEntities())
-                {
-                    Vec2 mPos((double)event.mouseMove.x, (double)event.mouseMove.y);
-                    if (mPos.dist(e.getComponent<CTransform>().p) < e.getComponent<CCircleBody>().r)
-                    {
-                        auto & t = e.getComponent<CTransform>();
-                        Vec2 diff(m_mousePos.x - t.p.x, m_mousePos.y - t.p.y);
-                        t.p += diff;
-                    }
-                }
-
             }
         }
 
+        if (m_draggedEntity != Entity()) {
+            auto& t = m_draggedEntity.getComponent<CTransform>();
+            /*
+            Vec2 diff(m_mousePos.x - t.p.x, m_mousePos.y - t.p.y);
+            diff /= 10;
+            t.v = diff;
+            */
+            t.p.x = m_mousePos.x;
+            t.p.y = m_mousePos.y;
+        }
     }
-
 
     void drawLine(Vec2 p1, Vec2 p2, sf::Color color)
     {
-        sf::Vertex line[] =
-        {
+        sf::Vertex line[] = {
             sf::Vertex(sf::Vector2f((float)p1.x, (float)p1.y), color),
             sf::Vertex(sf::Vector2f((float)p2.x, (float)p2.y), color)
         };
@@ -254,102 +235,148 @@ private:
 
         // Fill the occupancy grid
         sf::Color color(255, 255, 255);
-        for (auto robot : m_sim->getWorld()->getEntities("robot"))
-        {
-            auto & t = robot.getComponent<CTransform>();
-            m_occupancyImage.setPixel((int)t.p.x, (int)t.p.y, color);   
+        for (auto robot : m_sim->getWorld()->getEntities("robot")) {
+            auto& t = robot.getComponent<CTransform>();
+            m_occupancyImage.setPixel((int)t.p.x, (int)t.p.y, color);
         }
 
-
         // Draw the background image
-        if (m_backgroundImagePtr != NULL)
-        {
+        if (m_backgroundImagePtr != NULL) {
             m_backgroundTexture.update(*m_backgroundImagePtr);
             m_window.draw(m_backgroundSprite);
         }
 
         // draw robot plows
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CPlowBody>()) { continue; }
+        for (auto e : m_sim->getWorld()->getEntities()) {
+            if (!e.hasComponent<CPlowBody>()) {
+                continue;
+            }
 
-            auto & t = e.getComponent<CTransform>();
-            auto & pb = e.getComponent<CPlowBody>();
-            auto & c = e.getComponent<CColor>();
-            auto & steer = e.getComponent<CSteer>();
-    
+            auto& t = e.getComponent<CTransform>();
+            auto& pb = e.getComponent<CPlowBody>();
+            auto& c = e.getComponent<CColor>();
+            auto& steer = e.getComponent<CSteer>();
+
             pb.shape.setPosition((float)t.p.x, (float)t.p.y);
-            pb.shape.setRotation(steer.angle * 180.0 / M_PI);
+            pb.shape.setRotation((steer.angle + pb.angle) * 180.0 / M_PI);
             if (steer.slowedCount > 0) {
-                pb.shape.setFillColor(sf::Color(0, 0, 255));                
+                pb.shape.setFillColor(sf::Color(0, 0, 255));
             } else {
-                pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));                
+                pb.shape.setFillColor(sf::Color(c.r, c.g, c.b));
             }
             m_window.draw(pb.shape);
 
             // Draw a line along the prow.
-            Vec2 prow(t.p.x + pb.length * cos(steer.angle),
-                      t.p.y + pb.length * sin(steer.angle));
+            /*
+            Vec2 prow(t.p.x + pb.length * cos(steer.angle + pb.angle),
+                      t.p.y + pb.length * sin(steer.angle + pb.angle));
             drawLine(t.p, prow, sf::Color(255, 255, 255));
+            */
         }
 
         // draw circles
-        for (auto e : m_sim->getWorld()->getEntities())
-        {
-            if (!e.hasComponent<CCircleShape>()) { continue; }
+        for (auto e : m_sim->getWorld()->getEntities()) {
+            if (!e.hasComponent<CCircleShape>()) {
+                continue;
+            }
 
-            auto & t = e.getComponent<CTransform>();
-            auto & s = e.getComponent<CCircleShape>();
-            auto & c = e.getComponent<CColor>();
+            auto& t = e.getComponent<CTransform>();
+            auto& s = e.getComponent<CCircleShape>();
+            auto& c = e.getComponent<CColor>();
 
             s.shape.setPosition((float)t.p.x, (float)t.p.y);
             s.shape.setFillColor(sf::Color(c.r, c.g, c.b, c.a));
 
             if (e.hasComponent<CSteer>()) {
-                auto & steer = e.getComponent<CSteer>();
+                auto& steer = e.getComponent<CSteer>();
                 if (steer.frozen)
                     s.shape.setFillColor(sf::Color(127, 127, 127, 127));
             }
 
             m_window.draw(s.shape);
 
+            // Draw a line corresponding to this circle's velocity.
             Vec2 velPoint;
             double vLength = t.v.length();
-            if (vLength == 0)
-            {
+            if (vLength == 0) {
                 velPoint = Vec2(t.p.x + s.shape.getRadius(), t.p.y);
                 continue;
-            }
-            else
-            {
+            } else {
                 velPoint = t.p + t.v.normalize() * s.shape.getRadius();
             }
 
             drawLine(t.p, velPoint, sf::Color(255, 255, 255));
         }
 
-        // Draw other robot-specific "decorations".
-        for (auto robot : m_sim->getWorld()->getEntities("robot"))
+        // draw robot sensors
+        if (m_sensors)
         {
-            auto & t = robot.getComponent<CTransform>();
-            auto & s = robot.getComponent<CCircleShape>();
-            auto & c = robot.getComponent<CColor>();
+            float gridSensorRadius = 2;
 
-            if (robot.hasComponent<CVectorIndicator>())
+            for (auto robot : m_sim->getWorld()->getEntities("robot"))
             {
-                auto & steer = robot.getComponent<CSteer>();
-                auto & vi = robot.getComponent<CVectorIndicator>();
+                // if (!m_draggedEntity || robot.id() != m_draggedEntity.id()) { continue; }
 
-                Vec2 start(t.p.x, t.p.y);
-                Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
-                        t.p.y + vi.length * sin(steer.angle + vi.angle));
-                drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
+                if (!robot.hasComponent<CSensorArray>()) { continue; }
+                auto & sensors = robot.getComponent<CSensorArray>();
+                auto & c = robot.getComponent<CColor>();
+
+                // Position and angle of robot.
+                const Vec2 & pos = robot.getComponent<CTransform>().p;
+                double theta = robot.getComponent<CSteer>().angle;
+
+                sf::Color grey(127, 127, 127);
+                sf::Color white(255, 255, 255);
+                for (auto & sensor : sensors.gridSensors)
+                {
+                    sf::CircleShape sensorShape(gridSensorRadius, 32);
+                    sensorShape.setOrigin(gridSensorRadius, gridSensorRadius);
+                    Vec2 pos = sensor->getPosition();
+                    sensorShape.setPosition((float)pos.x, (float)pos.y);
+                    sensorShape.setFillColor(sf::Color::White);
+                    m_window.draw(sensorShape);
+                }
             }
         }
 
-        for (auto & e : m_sim->getWorld()->getEntities("line"))
-        {
-            auto & line = e.getComponent<CLineBody>();
+        // Draw other robot-specific "decorations".
+        for (auto robot : m_sim->getWorld()->getEntities("robot")) {
+            auto& t = robot.getComponent<CTransform>();
+            auto& s = robot.getComponent<CCircleShape>();
+            auto& c = robot.getComponent<CColor>();
+            auto& steer = robot.getComponent<CSteer>();
+
+            if (robot.hasComponent<CVectorIndicator>()) {
+                auto& vi = robot.getComponent<CVectorIndicator>();
+
+                Vec2 start(t.p.x, t.p.y);
+                Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
+                    t.p.y + vi.length * sin(steer.angle + vi.angle));
+                drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
+            }
+
+            // Draw a line corresponding to this robot's heading.
+            double r = s.shape.getRadius();
+            Vec2 start(t.p.x, t.p.y);
+            Vec2 end(t.p.x + r * cos(steer.angle), t.p.y + r * sin(steer.angle));
+            drawLine(start, end, sf::Color(0, 0, 0));
+
+            // If the robot is selected, draw an outline around it.
+            if (robot.hasComponent<CControllerVis>() && robot.getComponent<CControllerVis>().selected) {
+                r *= 2;
+                sf::Vertex vertices[] = {
+                    sf::Vertex(sf::Vector2f(t.p.x - r/2, t.p.y - r/2), sf::Color::White),
+                    sf::Vertex(sf::Vector2f(t.p.x + r/2, t.p.y - r/2), sf::Color::White),
+                    sf::Vertex(sf::Vector2f(t.p.x + r/2, t.p.y + r/2), sf::Color::White),
+                    sf::Vertex(sf::Vector2f(t.p.x - r/2, t.p.y + r/2), sf::Color::White),
+                    sf::Vertex(sf::Vector2f(t.p.x - r/2, t.p.y - r/2), sf::Color::White)
+                };
+                m_window.draw(vertices, 5, sf::LineStrip);
+            }
+        }
+
+        for (auto& e : m_sim->getWorld()->getEntities("line")) {
+            auto& line = e.getComponent<CLineBody>();
 
             sf::CircleShape circle((float)line.r, 32);
             circle.setOrigin((float)line.r, (float)line.r);
@@ -366,52 +393,47 @@ private:
             drawLine(line.s - normal, line.e - normal, sf::Color::White);
         }
 
-        if (m_debug)
-        {
-            for (auto & collision : m_sim->getCollisions())
-            {
+        if (m_debug) {
+            for (auto& collision : m_sim->getCollisions()) {
                 drawLine(collision.t1->p, collision.t2->p, sf::Color::Green);
             }
         }
 
-        // draw information
-        /*
-        std::stringstream ss;
-        ss << "Num Objs: " << m_sim->getWorld()->getEntities().size() << "\n";
-        ss << "CPU Time: " << m_sim->getComputeTime() << "ms\n";
-        ss << "Max Time: " << m_sim->getComputeTimeMax() << "ms\n";
-        m_text.setString(ss.str());
-        m_window.draw(m_text);
-        */
+        // Draw "controls" area at the bottom of the screen.
+        sf::RectangleShape rect(sf::Vector2f(m_windowWidth, m_controlsHeight));
+        rect.setPosition(0, m_sim->getWorld()->height());
+        rect.setFillColor(sf::Color(100, 100, 100, 255));
+        m_window.draw(rect);
 
-        // draw evaluation
+        // Draw the status text
         sf::Text text;
         text.setFont(m_font);
         text.setString(m_status);
-        text.setCharacterSize(20);
-        text.setPosition(5, (float)m_sim->getWorld()->height() - text.getLocalBounds().height-5);
-
-        // Now draw the text itself.
+        text.setCharacterSize(12);
+        text.setPosition(5, (float)m_sim->getWorld()->height());// + text.getLocalBounds().height);
         m_window.draw(text);
 
         m_window.display();
     }
-    
-public:
 
+public:
     GUI(std::shared_ptr<Simulator> sim, size_t fps)
         : m_sim(sim)
     {
-        m_window.create(sf::VideoMode((size_t)m_sim->getWorld()->width(), (size_t)m_sim->getWorld()->height()), "CWaggle");
+        m_windowWidth = m_sim->getWorld()->width();
+        m_windowHeight = m_sim->getWorld()->height() + m_controlsHeight;
+        m_window.create(sf::VideoMode(m_windowWidth, m_windowHeight), "CWaggle", sf::Style::Titlebar | sf::Style::Close);
         m_window.setFramerateLimit(fps);
 
         // Scale the window size up for high-res screens.
         int scaleFactor = 1;
-        m_window.setSize(sf::Vector2u(scaleFactor*m_sim->getWorld()->width(), scaleFactor*m_sim->getWorld()->height()));
+        size_t scaledWindowWidth = scaleFactor * m_windowWidth;
+        size_t scaledWindowHeight = scaleFactor * m_windowHeight;
+        m_window.setSize(sf::Vector2u(scaledWindowWidth, scaledWindowHeight));
         init(sim);
     }
 
-    void setStatus(const std::string & str)
+    void setStatus(const std::string& str)
     {
         m_status = str;
     }
@@ -432,87 +454,73 @@ public:
         m_window.close();
     }
 
-    void addContour(double contourValue) {
+    /*
+    void addContour(double contourValue, int red, int green, int blue)
+    {
         // If there is no grid, then there can be no contour.
-        auto & grid = m_sim->getWorld()->getGrid(0);
+        auto& grid = m_sim->getWorld()->getGrid(0);
         if (grid.width() == 0)
             return;
 
-        sf::Color white(255, 255, 255);
-        for (size_t x = 1; x < grid.width()-1; x++)
-        {
-            for (size_t y = 1; y < grid.height()-1; y++)
-            {
+        sf::Color c(red, green, blue);
+        for (size_t x = 0; x < grid.width(); x++) {
+            for (size_t y = 0; y < grid.height(); y++) {
+
                 // Compute difference between current cell and given value.
-                double diff = fabs(grid.get(x, y) - contourValue);
-
-                if (diff > 0.3)
-                    continue;
-
-                // Count how many neighbour cells have a smaller difference.
-                int smallerCount = 0;
-                for (int dx = -10; dx <= 10; dx++) {
-                    for (int dy = -10; dy <= 10; dy++) {
-                        if (!(dx == 0 && dy == 0) &&
-                            fabs(grid.get(x+dx, y+dy) - contourValue) <= diff) {
-                            smallerCount++;
-                        }
-                    }
-                }
-//                std::cout << diff << ", " << smallerCount << std::endl;
-
-                if (smallerCount <= 85) {
-                //    sf::Color white((int)(255.0 * diff), (int)(255.0 * diff), (int)(255.0 * diff));
-                    m_contourImage.setPixel(x, y, white); 
-                }
-            }
-        }
-    } 
-
-    void clearContours() {
-        // If there is no grid, then there can be no contour.
-        auto & grid = m_sim->getWorld()->getGrid(0);
-        if (grid.width() == 0)
-            return;
-
-        sf::Color black(0, 0, 0);
-        for (size_t x = 0; x < grid.width(); x++)
-        {
-            for (size_t y = 0; y < grid.height(); y++)
-            {
-                m_contourImage.setPixel(x, y, black); 
-            }
-        }
-    } 
-
-    void updateGridImage(int gridIndex) {
-        auto & grid = m_sim->getWorld()->getGrid(gridIndex);
-
-        int w = grid.width();
-        int h = grid.height();
-
-        auto & gridImage = m_gridImages[gridIndex];
-
-        for (size_t x = 0; x < w; x++) {
-            for (size_t y = 0; y < h; y++) {
-                uint8_t c = (uint8_t)(grid.get(x, y) * 255);
-                sf::Color color(c, c, c);
-                gridImage.setPixel(x, y, color); 
+                if (fabs(grid.get(x, y) - contourValue) < 0.005)
+                    m_contourImage.setPixel(x, y, c);
             }
         }
     }
 
-    void setUpArrowCallback(callback_function pFunc) {
-        m_upArrowCallback = pFunc;
-    }   
-    void setDownArrowCallback(callback_function pFunc) {
-        m_downArrowCallback = pFunc;
-    }   
-    void setSpaceCallback(callback_function pFunc) {
-        m_spaceCallback = pFunc;
-    }   
+    void clearContours()
+    {
+        // If there is no grid, then there can be no contour.
+        auto& grid = m_sim->getWorld()->getGrid(0);
+        if (grid.width() == 0)
+            return;
 
-    void saveScreenshot(std::string filename) {
+        sf::Color black(0, 0, 0);
+        for (size_t x = 0; x < grid.width(); x++) {
+            for (size_t y = 0; y < grid.height(); y++) {
+                m_contourImage.setPixel(x, y, black);
+            }
+        }
+    }
+    */
+
+    void updateGridImage(int gridIndex, bool red, bool green, bool blue)
+    {
+        auto& grid = m_sim->getWorld()->getGrid(gridIndex);
+
+        int w = grid.width();
+        int h = grid.height();
+
+        auto& gridImage = m_gridImages[gridIndex];
+
+        for (size_t x = 0; x < w; x++) {
+            for (size_t y = 0; y < h; y++) {
+                uint8_t value = (uint8_t)(grid.get(x, y) * 255);
+                uint8_t r=0, g=0, b=0;
+                if (red)
+                    r = value;
+                if (green)
+                    g = value;
+                if (blue)
+                    b = value;
+                sf::Color color(r, g, b);
+                gridImage.setPixel(x, y, color);
+            }
+        }
+    }
+
+    void setKeyboardCallback(KeyboardCallback* keyboardCallback)
+    {
+        m_keyboardCallback = keyboardCallback;
+    }
+
+    void saveScreenshot(std::string filename)
+    {
         //sf::Image screenshot = m_window.capture();
         //screenshot.saveToFile(filename);
         sf::Texture texture;

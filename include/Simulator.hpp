@@ -118,6 +118,7 @@ class Simulator
             for (auto & e : m_world->getEntities("line"))
             {
                 auto & edge = e.getComponent<CLineBody>();
+
                 handleCollisionWithLineBody(b1, t1, edge, false);
             }
 
@@ -136,10 +137,10 @@ class Simulator
 
                 // We create (but do not store) a CLineBody object used to check
                 // for collision with the current circle (b1).
-                double xStart = t.p.x + pb.startLength * cos(steer.angle);
-                double yStart = t.p.y + pb.startLength * sin(steer.angle);
-                double xProw = t.p.x + pb.length * cos(steer.angle);
-                double yProw = t.p.y + pb.length * sin(steer.angle);
+                double xStart = t.p.x + pb.startLength * cos(steer.angle + pb.angle);
+                double yStart = t.p.y + pb.startLength * sin(steer.angle + pb.angle);
+                double xProw = t.p.x + pb.length * cos(steer.angle + pb.angle);
+                double yProw = t.p.y + pb.length * sin(steer.angle + pb.angle);
                 CLineBody wedgeLineBody(Vec2(xStart, yStart), Vec2(xProw, yProw), pb.width/2.0);
 
                 bool collided = handleCollisionWithLineBody(b1, t1, wedgeLineBody, true);
@@ -218,11 +219,12 @@ class Simulator
             if (t1.p.y + b1.r > m_world->height()) { t1.p.y = m_world->height() - b1.r; b1.collided = true; }
 
             // AV: check for collisions between plows and bounds of the world.
+            /*
             if (!e1.hasComponent<CPlowBody>()) { continue; }
             auto & pb = e1.getComponent<CPlowBody>();
             auto & steer = e1.getComponent<CSteer>();
-            double xProw = t1.p.x + pb.length * cos(steer.angle);
-            double yProw = t1.p.y + pb.length * sin(steer.angle);
+            double xProw = t1.p.x + pb.length * cos(steer.angle + pb.angle);
+            double yProw = t1.p.y + pb.length * sin(steer.angle + pb.angle);
             bool plowBorderCollision = false;
             if (xProw < 0) {t1.p.x -= xProw; b1.collided = true; plowBorderCollision = true; }
             if (yProw < 0) {t1.p.y -= yProw; b1.collided = true; plowBorderCollision = true; }
@@ -232,6 +234,7 @@ class Simulator
             if (plowBorderCollision) {
                 steer.slowedCount = SLOWED_ROBOT_COUNT;
             }
+            */
         }
 
         // step 3: calculate and apply dynamic collision resolution to any detected collisions
@@ -244,6 +247,9 @@ class Simulator
 
             // normal between the circles
             double dist = t1->p.dist(t2->p);
+            if (dist == 0)
+                // AV: Avoid division by zero below.
+                dist = 1;
             double nx = (t2->p.x - t1->p.x) / dist;
             double ny = (t2->p.y - t1->p.y) / dist;
 
@@ -280,6 +286,10 @@ class Simulator
         // find the closest point on the line to the circle and the distance to it
         Vec2 closestPoint(lineBody.s.x + t * lineX1, lineBody.s.y + t * lineY1);
         double distance = closestPoint.dist(t1.p);
+
+        if (distance == 0)
+            // AV: Avoid division by zero below.
+            distance = 1;
 
         // pretend the closest point on the line is a circle and check collision
         // calculate the overlap between the circle and that fake circle

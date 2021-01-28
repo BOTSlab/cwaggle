@@ -5,7 +5,8 @@
 #include <iostream>
 #include <vector>
 
-const size_t MaxEntities = 20000;
+//const size_t MaxEntities = 20000;
+const size_t MaxEntities = 200000;
 //const size_t MaxEntities = 20000000;
 const size_t MaxComponents = 32;
 
@@ -15,8 +16,10 @@ typedef std::tuple <
     std::vector<CCircleShape>,
     std::vector<CLineBody>,
     std::vector<CController>,
+    std::vector<CSensorArray>,
     std::vector<CRobotType>,
     std::vector<CSteer>,
+    std::vector<CControllerVis>,
     std::vector<CVectorIndicator>,
     std::vector<CPlowBody>,
     std::vector<CColor>
@@ -38,9 +41,11 @@ class EntityMemoryPool
         getData<CCircleBody>().resize(MaxEntities);
         getData<CCircleShape>().resize(MaxEntities);
         getData<CLineBody>().resize(MaxEntities);
+        getData<CSensorArray>().resize(MaxEntities);
         getData<CSteer>().resize(MaxEntities);
         getData<CRobotType>().resize(MaxEntities);
         getData<CController>().resize(MaxEntities);
+        getData<CControllerVis>().resize(MaxEntities);
         getData<CVectorIndicator>().resize(MaxEntities);
         getData<CPlowBody>().resize(MaxEntities);
         getData<CColor>().resize(MaxEntities);
@@ -89,9 +94,11 @@ public:
             instance.getData<CCircleBody>()[i] = {};
             instance.getData<CCircleShape>()[i] = {};
             instance.getData<CLineBody>()[i] = {};
+            instance.getData<CSensorArray>()[i] = {};
             instance.getData<CSteer>()[i] = {};
             instance.getData<CRobotType>()[i] = {};
             instance.getData<CController>()[i] = {};
+            instance.getData<CControllerVis>()[i] = {};
             instance.getData<CVectorIndicator>()[i] = {};
             instance.getData<CColor>()[i] = {};
 
@@ -111,9 +118,11 @@ public:
         getData<CCircleBody>()[entityIndex]   = {};
         getData<CCircleShape>()[entityIndex]  = {};
         getData<CLineBody>()[entityIndex]     = {};
+        getData<CSensorArray>()[entityIndex]  = {};
         getData<CColor>()[entityIndex]        = {};
         getData<CRobotType>()[entityIndex]    = {};
         getData<CController>()[entityIndex]   = {};
+        getData<CControllerVis>()[entityIndex]   = {};
         getData<CVectorIndicator>()[entityIndex]   = {};
         getData<CPlowBody>()[entityIndex]   = {};
         getData<CSteer>()[entityIndex]        = {};

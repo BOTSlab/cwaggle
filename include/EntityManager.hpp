@@ -38,7 +38,9 @@ public:
         for (auto e : m_entities)
         {
             e.setActive(false);
+            m_entitiesToRemove.push_back(e);
         }
+        update();
     }
 
     void update()

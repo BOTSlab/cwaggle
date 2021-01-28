@@ -7,6 +7,8 @@
 
 #include "Vec2.hpp"
 
+using std::string;
+
 class CTransform
 {
 public:
@@ -47,6 +49,13 @@ public:
     }
 };
 
+class GridSensor;
+class CSensorArray
+{
+public:
+    std::vector<std::shared_ptr<GridSensor>>     gridSensors;
+    CSensorArray() {}
+};
 
 class CLineBody
 {
@@ -92,6 +101,19 @@ public:
         : r((uint8_t)rr), g((uint8_t)gg), b((uint8_t)bb), a((uint8_t)aa) {}
 };
 
+// Used to hold on to visualization-related info from a robot's controller.
+class CControllerVis
+{
+public:
+    string msg;
+    bool selected = false;
+
+    CControllerVis() {}
+    CControllerVis(string m)
+        : msg(m)
+    {}
+};
+
 // Used to draw a vector from a robot (or potentially other entity)
 class CVectorIndicator
 {
@@ -111,18 +133,19 @@ public:
 class CPlowBody
 {
 public:
-    double length, startLength, width;
+    double length, angle, startLength, width;
     sf::ConvexShape shape;
 
     CPlowBody() {}
-    CPlowBody(double l, double cbRadius)
+    CPlowBody(double l, double cbRadius, double angleDeg)
         : length(l)
+        , angle(angleDeg * M_PI / 180.0)
         , shape()
     {
         startLength = cbRadius*cbRadius / length;
         // This is right, but seems to cause problems getting pucks away from borders/corners.
-        // width = 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
-        width = 0.9 * 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
+        width = 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
+//        width = 0.9 * 2 * cbRadius * sqrt(length*length - cbRadius*cbRadius)/length;
 
         shape.setPointCount(3);
 

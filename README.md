@@ -1,5 +1,4 @@
-# CWaggle
-CWaggle Robot Simulator
+# CWaggle CWaggle Robot Simulator
 
 CWaggle requires the SFML library: https://www.sfml-dev.org/
 

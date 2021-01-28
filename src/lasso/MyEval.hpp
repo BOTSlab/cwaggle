@@ -4,7 +4,7 @@
 #include "Entity.hpp"
 #include "Components.hpp"
 
-namespace SortEval
+namespace LassoEval
 {
     // For debuggging placement of pucks on top of other entities.
     double PucksOnTopOfAnything(std::shared_ptr<World> world, std::string puckType)
@@ -97,6 +97,47 @@ namespace SortEval
         if (isnan(total) || n == 0) { return 0; }
 
         return total / n;
+    }
+
+    /**
+     * Computed the biggest difference between any two grid values that are 
+     * within the given radius of each other.
+     */
+    double BiggestGridValueDifference(std::shared_ptr<World> world, int gridIndex, int radius)
+    {
+        auto & grid = world->getGrid(gridIndex);
+
+        double biggestDiff = 0;
+        int w = grid.width();
+        int h = grid.height();
+        for (int i=radius; i < w - radius; ++i) {
+            for (int j=radius; j < h - radius; ++j) {
+
+                // Generally now assume grid and world dimensions are
+                // the same, so this is not really necessary.  But will
+                // this assumption always hold?
+                //size_t gX = (size_t)round(w * i / world->width());
+                //size_t gY = (size_t)round(h * j / world->height());
+                //double centralValue = grid.get(gX, gY);
+                double centralValue = grid.get(i, j);
+
+                for (int di=-radius; di <= radius; ++di) {
+                    for (int dj=-radius; dj <= radius; ++dj) {
+                        if (sqrt(di*di + dj*dj) <= radius) {
+                            //gX = (size_t)round(w * (i + di) / world->width());
+                            //gY = (size_t)round(h * (j + dj) / world->height());
+                            //double diff = fabs(centralValue - grid.get(gX, gY));
+                            double diff = fabs(centralValue - grid.get(i + di, j + dj));
+                            if (diff > biggestDiff)
+                                biggestDiff = diff;
+                        }
+                    }
+                }
+
+            }
+        }
+
+        return biggestDiff;
     }
 
     double PuckSSDFromIdealPosition(std::shared_ptr<World> world, std::string puckType, Vec2 idealPosition)

@@ -28,6 +28,11 @@ public:
         
     }
 
+    ~World()
+    {
+        std::cerr << "World destroyed." << std::endl;
+    }
+
     void update()
     {
         m_entitiyManager.update();
@@ -55,6 +60,7 @@ public:
     
     ValueGrid & getGrid(size_t index)
     {
+        if (m_grids[index].width() == 0) { throw "Empty grid"; }
         return m_grids[index];
     }
 
