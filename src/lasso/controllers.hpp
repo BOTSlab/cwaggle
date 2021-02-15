@@ -59,12 +59,13 @@ public:
         double centre = m_reading.gridCentre0;
         double right = m_reading.gridRight0;
 
-        vector<pair<double, double>> otherRobotIntervals = m_globalSensor.getOtherRobotIntervals(m_world, m_robot, m_config.fieldOfView, m_config.maxSensingDistance);
+        bool robotAhead = m_globalSensor.anotherRobotAhead(m_world, m_robot, m_config.fieldOfView, m_config.robotReactDistance);
 
         bool puckValid = false;
-        double puckValue = m_globalSensor.getExtremeGridValue(m_world, m_robot, "red_puck", true, 0, 1, otherRobotIntervals, m_config.fieldOfView, m_config.maxSensingDistance, puckValid);
+        double puckValue = m_globalSensor.getExtremeGridValue(m_world, m_robot, "red_puck", true, 0, 1, m_config.fieldOfView, m_config.maxSensingDistance, puckValid);
 
-        m_targetThreshold = 1.0;
+        m_targetThreshold = 0.15;
+
         if (puckValid) {
             //m_targetThreshold = fmax(0.01, puckValue);
             m_targetThreshold = puckValue;
@@ -82,6 +83,7 @@ public:
         double v = 1;
         double w = 0;
 
+/*
         if (forward >= 1 || centre >= 1 || right >= 1) {
             // The sensors are off the edge of the grid, or in the middle of
             // an obstacle where there is no valid reading.  Just veer right.
@@ -97,28 +99,55 @@ public:
             m_indicator.b = 255;
             //cerr << "REALIGN" << endl;
         } else {
-            /**
-             * Kbal should be in [0, 1] and selects the balance between these two
-             * error terms:
-             * 
-             *  Alignment term: (forward - centre) / m_maxAbsFminusC
-             *  Distance term: epsilon
-             */
+            //
+            // Kbal should be in [0, 1] and selects the balance between these two
+            // error terms:
+            // 
+            //  Alignment term: (forward - centre) / m_maxAbsFminusC
+            //  Distance term: epsilon
+            //
             w = m_config.Kbal * (forward - centre) / m_maxAbsFminusC + (1.0 - m_config.Kbal) * epsilon;
 
             m_indicator.g = 255;
             //cerr << "PROP" << endl;
         }
+*/
 
-        //if (fabs(w) > 0.5) v = 0.1;
+        if (forward >= 1)
+            w = 1.0;
+        else {
+            if (right > centre) {
+                v = 0;
+                //w = (forward - centre) / m_maxAbsFminusC;
+                if (forward > centre)
+                    w = 1;
+                else
+                    w = -1;
+            } else {
+                w = epsilon;
+            }
+        }
 
-        if (otherRobotIntervals.size() > 0) v = 0.5;
+        if (robotAhead)
+            v = 0.1;
 
+        //
         // Debug / visualization
+        //
+
+        if (right > centre)
+            m_robot.addComponent<CColor>(0, 255, 0, 255);
+        else
+            m_robot.addComponent<CColor>(255, 0, 0, 255);
+        
         if (m_robot.getComponent<CControllerVis>().selected) {
+            Vec2 robotPos = m_robot.getComponent<CTransform>().p;
+
+            m_robot.addComponent<CTerritory>(robotPos, m_config.robotReactDistance);
+
             auto & visGrid = m_world->getGrid(5);
             visGrid.addContour(m_targetThreshold, m_world->getGrid(0), 1.0);
-            //
+
             if (w > 0)
                 m_indicator.angle = M_PI/2.0;
             else if (w < 0)
@@ -127,9 +156,14 @@ public:
             m_robot.addComponent<CVectorIndicator>(m_indicator);
             std::stringstream ss;
             ss << m_reading.toString()
-            << "epsilon: " << epsilon << endl
-            << "v, w: " << v << ", " << w << endl;
+            << "epsilon: " << epsilon << endl;
+            //<< "v, w: " << v << ", " << w << endl;
             m_visComponent.msg = ss.str();
+        } else {
+            // This doesn't work:
+            // m_robot.removeComponent<CTerritory>();
+            // So we use this hack of adding an off-screen territory instead
+            m_robot.addComponent<CTerritory>(Vec2{-1000, -1000}, 0);
         }
 
         return EntityAction(v * m_config.maxForwardSpeed, w * m_config.maxAngularSpeed);

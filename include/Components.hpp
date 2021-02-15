@@ -106,7 +106,7 @@ class CControllerVis
 {
 public:
     string msg;
-    bool selected = false;
+    bool selected = true;
 
     CControllerVis() {}
     CControllerVis(string m)
@@ -152,6 +152,25 @@ public:
         shape.setPoint(0, sf::Vector2f(startLength, -width/2.0f));
         shape.setPoint(1, sf::Vector2f(length, 0));
         shape.setPoint(2, sf::Vector2f(startLength, width/2.0f));
+    }
+};
+
+class CTerritory
+{
+public:
+    Vec2 centre{ 0.0, 0.0 };
+    double radius = 0;
+    sf::CircleShape shape;
+    sf::Color color;
+
+    CTerritory() {}
+    CTerritory(const Vec2 & c, double r, int red=255, int green=255, int blue=255, int alpha=255) 
+        : centre(c)
+        , radius(r)
+        , shape((float)radius, 32)
+        , color(red, green, blue, alpha)
+    {
+        shape.setOrigin((float)radius, (float)radius);
     }
 };
 

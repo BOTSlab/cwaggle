@@ -10,7 +10,7 @@
 #include "World.hpp"
 #include "Components.hpp"
 
-#define SLOWED_ROBOT_COUNT 150
+#define SLOWED_ROBOT_COUNT 0
 
 struct CollisionData
 {

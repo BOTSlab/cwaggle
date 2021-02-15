@@ -19,7 +19,7 @@ class GUI {
     Entity m_draggedEntity;
     bool m_debug = false;
     bool m_sensors = false;
-    size_t m_controlsHeight = 100;
+    size_t m_controlsHeight = 150;
     size_t m_windowWidth;
     size_t m_windowHeight;
 
@@ -154,14 +154,29 @@ private:
                 case sf::Keyboard::Num5:
                     m_backgroundImagePtr = &m_gridImages[5];
                     break;
-                //case sf::Keyboard::Num0:
-                //    m_backgroundImagePtr = NULL;
-                //    break;
+                case sf::Keyboard::Num6:
+                    m_backgroundImagePtr = &m_gridImages[6];
+                    break;
                 case sf::Keyboard::Left:
                     rotateRobots(-0.15);
                     break;
                 case sf::Keyboard::Right:
                     rotateRobots(0.15);
+                    break;
+                case sf::Keyboard::A:
+                    // Select all robots
+                    for (auto e : m_sim->getWorld()->getEntities()) {
+                        if (!e.hasComponent<CControllerVis>()) { continue; }
+                        e.getComponent<CControllerVis>().selected = true;
+                    }
+                    break;
+
+                case sf::Keyboard::N:
+                    // De-select all robots
+                    for (auto e : m_sim->getWorld()->getEntities()) {
+                        if (!e.hasComponent<CControllerVis>()) { continue; }
+                        e.getComponent<CControllerVis>().selected = false;
+                    }
                     break;
 
                 default:
@@ -346,15 +361,6 @@ private:
             auto& c = robot.getComponent<CColor>();
             auto& steer = robot.getComponent<CSteer>();
 
-            if (robot.hasComponent<CVectorIndicator>()) {
-                auto& vi = robot.getComponent<CVectorIndicator>();
-
-                Vec2 start(t.p.x, t.p.y);
-                Vec2 end(t.p.x + vi.length * cos(steer.angle + vi.angle),
-                    t.p.y + vi.length * sin(steer.angle + vi.angle));
-                drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
-            }
-
             // Draw a line corresponding to this robot's heading.
             double r = s.shape.getRadius();
             Vec2 start(t.p.x, t.p.y);
@@ -372,6 +378,36 @@ private:
                     sf::Vertex(sf::Vector2f(t.p.x - r/2, t.p.y - r/2), sf::Color::White)
                 };
                 m_window.draw(vertices, 5, sf::LineStrip);
+            }
+
+            if (robot.hasComponent<CTerritory>()) {
+                auto& territory = robot.getComponent<CTerritory>();
+                territory.shape.setRadius((float)territory.radius);
+                territory.shape.setOrigin((float)territory.radius, (float)territory.radius);
+                territory.shape.setPosition((float)territory.centre.x, (float)territory.centre.y);
+                territory.shape.setFillColor(sf::Color(0, 0, 0, 0));
+                territory.shape.setOutlineColor(territory.color);
+                territory.shape.setOutlineThickness(1);
+                m_window.draw(territory.shape);
+            }
+        }
+
+        // Draw CVectorIndicator objects, which could be attached to any entity
+        for (auto e : m_sim->getWorld()->getEntities()) {
+            if (e.hasComponent<CVectorIndicator>()) {
+                auto& vi = e.getComponent<CVectorIndicator>();
+                auto& t = e.getComponent<CTransform>();
+
+                double angle = vi.angle;
+                if (e.hasComponent<CVectorIndicator>()) {
+                    auto& steer = e.getComponent<CSteer>();
+                    angle += steer.angle;
+                }
+
+                Vec2 start(t.p.x, t.p.y);
+                Vec2 end(t.p.x + vi.length * cos(angle),
+                         t.p.y + vi.length * sin(angle));
+                drawLine(start, end, sf::Color(vi.r, vi.g, vi.b, vi.a));
             }
         }
 
@@ -454,44 +490,11 @@ public:
         m_window.close();
     }
 
-    /*
-    void addContour(double contourValue, int red, int green, int blue)
-    {
-        // If there is no grid, then there can be no contour.
-        auto& grid = m_sim->getWorld()->getGrid(0);
-        if (grid.width() == 0)
-            return;
-
-        sf::Color c(red, green, blue);
-        for (size_t x = 0; x < grid.width(); x++) {
-            for (size_t y = 0; y < grid.height(); y++) {
-
-                // Compute difference between current cell and given value.
-                if (fabs(grid.get(x, y) - contourValue) < 0.005)
-                    m_contourImage.setPixel(x, y, c);
-            }
-        }
-    }
-
-    void clearContours()
-    {
-        // If there is no grid, then there can be no contour.
-        auto& grid = m_sim->getWorld()->getGrid(0);
-        if (grid.width() == 0)
-            return;
-
-        sf::Color black(0, 0, 0);
-        for (size_t x = 0; x < grid.width(); x++) {
-            for (size_t y = 0; y < grid.height(); y++) {
-                m_contourImage.setPixel(x, y, black);
-            }
-        }
-    }
-    */
-
     void updateGridImage(int gridIndex, bool red, bool green, bool blue)
     {
-        auto& grid = m_sim->getWorld()->getGrid(gridIndex);
+        // Get a copy of the grid and normalize it.
+        ValueGrid grid{m_sim->getWorld()->getGrid(gridIndex)};
+        grid.normalize();
 
         int w = grid.width();
         int h = grid.height();

@@ -26,8 +26,7 @@ public:
      * If there are no objects of the given type with grid value within the
      * range [min, max] then set valid false, otherwise set it to true.
      */
-    //inline virtual double getExtremeGridValue(std::shared_ptr<World> world, Entity robot, string objectType, bool getMax, double min, double max, vector<pair<double, double>> forbiddenIntervals, double fieldOfView, double maxDistance, bool &valid)
-    inline virtual double getExtremeGridValue(std::shared_ptr<World> world, Entity robot, string objectType, bool getMax, double min, double max, double fieldOfView, double maxDistance, bool &valid)
+    inline virtual double getExtremeGridValue(std::shared_ptr<World> world, Entity robot, string objectType, bool getMax, double min, double max, vector<pair<double, double>> forbiddenIntervals, double fieldOfView, double maxDistance, bool &valid)
     {
         bool vis = robot.getComponent<CControllerVis>().selected;
 
@@ -66,7 +65,6 @@ public:
                 // Puck's value (from scalar field) is outside desired range.
                 continue;
 
-            /*
             bool forbidden = false;
             for (pair<double, double> interval : forbiddenIntervals)
                 if (v >= interval.first && v <= interval.second) {
@@ -75,7 +73,6 @@ public:
                 }
             if (forbidden) 
                 continue;
-            */
 
             // Is there a clear line of sight from the robot to this puck?
             bool intersectLines = false;
@@ -103,69 +100,6 @@ public:
 
         valid = getMax ? extreme > 0 : extreme < DBL_MAX;
         return extreme;
-    }
-
-    inline virtual bool anotherRobotAhead(std::shared_ptr<World> world, Entity robot, double fieldOfView, double maxDistance)
-    {
-        bool vis = robot.getComponent<CControllerVis>().selected;
-
-        auto & grid = world->getGrid(m_gridIndex);
-
-        Vec2 robotPos = robot.getComponent<CTransform>().p;
-        double robotAngle = robot.getComponent<CSteer>().angle;
-        
-        for (auto e : world->getEntities("robot"))
-        {
-            if (robot.id() == e.id()) { continue; }
-
-            // Vis: Using the alpha channel to show pucks which pass the tests 
-            // below.  Assuming none are passed, we set alpha to the default.
-            if (vis) e.getComponent<CColor>().a = 255;
-
-            Vec2 otherPos = e.getComponent<CTransform>().p;
-            auto & cb = e.getComponent<CCircleBody>();
-            auto & pb = e.getComponent<CPlowBody>();
-            auto & steer = e.getComponent<CSteer>();
-
-            // Check for a direct line of sight between this robot and the other
-            // robot's rear end.  We do this here by comparing the distance from
-            // this robot to the other robot's centre and to its "arse". 
-            double distanceToOtherRobotCentre = robotPos.dist(otherPos);
-            Vec2 otherRobotArse{otherPos.x + cb.r * cos(steer.angle + M_PI),
-                                otherPos.y + cb.r * sin(steer.angle + M_PI)};
-            double distanceToOtherRobotArse = robotPos.dist(otherRobotArse);
-            if (distanceToOtherRobotArse > distanceToOtherRobotCentre)
-                continue;
-            
-            if (distanceToOtherRobotArse > maxDistance)
-                continue;
-
-            double angle = Angles::constrainAngle(
-                atan2(otherRobotArse.y - robotPos.y, otherRobotArse.x - robotPos.x) - robotAngle
-            );
-
-            if (fabs(angle) > fieldOfView / 2.0)
-                continue;
-
-            // Is there a clear line of sight from the robot to the other robot's arse
-            bool intersectLines = false;
-            for (auto lineEntity : world->getEntities("line")) {
-                auto & line = lineEntity.getComponent<CLineBody>();
-
-                if (Intersect::segmentsIntersect(robotPos, otherRobotArse, line.s, line.e)) {
-                    intersectLines = true;
-                    break;
-                }
-            }
-            if (intersectLines)
-                continue;
-
-            if (vis) e.getComponent<CColor>().a = rand() % 256;
-
-            return true;
-        }
-
-        return false;
     }
 
     /**

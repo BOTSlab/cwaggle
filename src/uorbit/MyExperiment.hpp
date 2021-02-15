@@ -92,7 +92,7 @@ public:
     {
         bool running = true;
         while (running) {
-            m_eval = LassoEval::PuckGridValues(m_world, "red_puck", 2, false);
+            m_eval = UOrbitEval::evaluate(m_world, m_config);
             //cerr << "m_eval: " << m_eval << endl;
             if (isnan(m_eval)) {
                 cerr << "nan evaluation encountered!\n";
@@ -124,13 +124,25 @@ public:
                     }
                 }
 
+                for (auto probe : m_sim->getWorld()->getEntities("probe"))
+                {
+                    int nGrids = m_sim->getWorld()->getNumberOfGrids();
+                    for (int gridIndex = 0; gridIndex < nGrids; ++gridIndex) {
+                        const Vec2& pos = probe.getComponent<CTransform>().p;
+                        size_t gX = (size_t)round(pos.x);
+                        size_t gY = (size_t)round(pos.y);
+                        double reading = m_sim->getWorld()->getGrid(gridIndex).get(gX, gY);
+                        m_status << "Grid " << gridIndex << ": " << reading << endl;
+                    }
+                }
+
                 // These are the value grids used within the controller for vis
-                m_gui->updateGridImage(3, true, false, false);
-                m_gui->updateGridImage(4, false, true, false);
-                m_gui->updateGridImage(5, false, false, true);
-                m_sim->getWorld()->getGrid(3).setAll(0);
+                m_gui->updateGridImage(4, true, false, false);
+                m_gui->updateGridImage(5, false, true, false);
+                m_gui->updateGridImage(6, false, false, true);
                 m_sim->getWorld()->getGrid(4).setAll(0);
                 m_sim->getWorld()->getGrid(5).setAll(0);
+                m_sim->getWorld()->getGrid(6).setAll(0);
 
                 m_gui->setStatus(m_status.str());
 
@@ -180,7 +192,7 @@ private:
     void addRobotControllers()
     {
         for (auto e : m_world->getEntities("robot")) {
-            e.addComponent<CController>(make_shared<EntityController_Lasso>(e, m_world, m_ctrlConfig));
+            e.addComponent<CController>(make_shared<EntityController_UOrbit>(e, m_world, m_ctrlConfig, m_config));
         }
     }
 
@@ -189,7 +201,7 @@ private:
         m_aborted = false;
 
         if (m_world == NULL)
-            m_world = lasso_world::GetWorld(m_rng, m_config);
+            m_world = uorbit_world::GetWorld(m_rng, m_config);
 
         // randomizeWorld(m_rng, m_config.robotRadius, m_config.puckRadius);
 

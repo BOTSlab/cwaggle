@@ -21,7 +21,7 @@ void printResults(const vector<tuple<double, double, double>>& sweepResults)
 double runExperiment(ExperimentConfig config, ControllerConfig ctrlConfig)
 {
     double avgEval = 0;
-    for (int i = 0; i < config.numTrials; i++) {
+    for (int i = 0; i < config.nTrials; i++) {
         cerr << "Trial: " << i << "\n";
         MyExperiment exp(config, ctrlConfig, i, i);
         exp.run();
@@ -32,9 +32,9 @@ double runExperiment(ExperimentConfig config, ControllerConfig ctrlConfig)
     }
 
     ctrlConfig.print();
-    cout << "\t" << avgEval / config.numTrials << "\n";
+    cout << "\t" << avgEval / config.nTrials << "\n";
 
-    return avgEval / config.numTrials;
+    return avgEval / config.nTrials;
 }
 
 
@@ -43,7 +43,7 @@ double runWithDefaultConfig()
     ControllerConfig ctrlConfig;
 
     // Read the config file name from console if it exists
-    string configFile = "lasso_config.txt";
+    string configFile = "uorbit_config.txt";
     ExperimentConfig config;
     config.load(configFile);
 
@@ -52,7 +52,7 @@ double runWithDefaultConfig()
 
 void paramSweep()
 {
-    string configFile = "lasso_config.txt";
+    string configFile = "uorbit_config.txt";
     ExperimentConfig config;
     config.load(configFile);
 
@@ -60,18 +60,18 @@ void paramSweep()
     ControllerConfig ctrlConfig;
 
     vector<pair<int, double>> sweepResults;
-    for (config.numRobots = 1; config.numRobots < 15; config.numRobots += 5) {
+    for (config.nRobots = 1; config.nRobots < 15; config.nRobots += 5) {
         ostringstream oss;
-        oss << "../../data/" << config.numRobots;
+        oss << "../../data/" << config.nRobots;
         config.plotFilenameBase = oss.str();
 
-        cout << "numRobots: " << config.numRobots << endl;
+        cout << "nRobots: " << config.nRobots << endl;
         double avgEval = runExperiment(config, ctrlConfig);
-        sweepResults.push_back(make_pair(config.numRobots, avgEval));
+        sweepResults.push_back(make_tuple(config.nRobots, avgEval));
     }
 
     for (const pair<int, double> result : sweepResults)
-        cout << "numRobots: " << result.first << ": " << result.second << endl;
+        cout << "nRobots: " << result.first << ": " << result.second << endl;
 
 /*
     vector<tuple<double, double, double>> sweepResults;
@@ -102,7 +102,7 @@ void paramSweep()
 int main(int argc, char** argv)
 {
     if (argc != 2) {
-        cerr << "Usage\n\tcwaggle_lasso [run or sweep]" << endl;
+        cerr << "Usage\n\tcwaggle_uorbit [run or sweep]" << endl;
         return -1;
     }
     string cmd(argv[1]);
