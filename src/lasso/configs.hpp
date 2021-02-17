@@ -93,7 +93,7 @@ struct ControllerConfig
     double Kbal = 0.0;
     double maxSensingDistance = 200;
     double robotReactDistance = 100;
-    double fieldOfView = M_PI;
+    double fieldOfView = M_PI/2.0;
 
     ControllerConfig() {}
 

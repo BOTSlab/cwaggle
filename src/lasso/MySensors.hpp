@@ -105,7 +105,7 @@ public:
         return extreme;
     }
 
-    inline virtual bool anotherRobotAhead(std::shared_ptr<World> world, Entity robot, double fieldOfView, double maxDistance)
+    inline virtual bool anotherRobotAhead(std::shared_ptr<World> world, Entity robot, double sensorAngle, double fieldOfView, double maxDistance)
     {
         bool vis = robot.getComponent<CControllerVis>().selected;
 
@@ -141,7 +141,7 @@ public:
                 continue;
 
             double angle = Angles::constrainAngle(
-                atan2(otherRobotArse.y - robotPos.y, otherRobotArse.x - robotPos.x) - robotAngle
+                atan2(otherRobotArse.y - robotPos.y, otherRobotArse.x - robotPos.x) - robotAngle - sensorAngle
             );
 
             if (fabs(angle) > fieldOfView / 2.0)
@@ -172,7 +172,7 @@ public:
      * Get a vector of pairs, each of which represents the (min, max) values of
      * another visible robot.
      */
-    inline virtual vector<pair<double, double>> getOtherRobotIntervals(std::shared_ptr<World> world, Entity robot, double fieldOfView, double maxDistance)
+    inline virtual vector<pair<double, double>> getOtherRobotIntervals(std::shared_ptr<World> world, Entity robot, double sensorAngle, double fieldOfView, double maxDistance)
     {
         bool vis = robot.getComponent<CControllerVis>().selected;
 
@@ -237,7 +237,7 @@ public:
                     continue;
 
                 double angle = Angles::constrainAngle(
-                    atan2(pos.y - robotPos.y, pos.x - robotPos.x) - robotAngle
+                    atan2(pos.y - robotPos.y, pos.x - robotPos.x) - robotAngle - sensorAngle
                 );
 
                 if (fabs(angle) > fieldOfView / 2.0)

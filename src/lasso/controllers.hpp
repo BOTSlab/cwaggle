@@ -37,6 +37,7 @@ public:
         , m_visComponent(m_robot.addComponent<CControllerVis>())
         , m_indicator(3.14, 20, 255, 0, 0, 255)
     {
+        m_targetThreshold = 0.15;
     }
 
     void resetIndicator() {
@@ -59,66 +60,40 @@ public:
         double centre = m_reading.gridCentre0;
         double right = m_reading.gridRight0;
 
-        bool robotAhead = m_globalSensor.anotherRobotAhead(m_world, m_robot, m_config.fieldOfView, m_config.robotReactDistance);
-
         bool puckValid = false;
         double puckValue = m_globalSensor.getExtremeGridValue(m_world, m_robot, "red_puck", true, 0, 1, m_config.fieldOfView, m_config.maxSensingDistance, puckValid);
 
-        m_targetThreshold = 0.15;
+        //bool robotAhead = m_globalSensor.anotherRobotAhead(m_world, m_robot, M_PI/2.0, m_config.fieldOfView, m_config.robotReactDistance);
+vector<pair<double, double>> otherRobotIntervals = m_globalSensor.getOtherRobotIntervals(m_world, m_robot, M_PI/2.0, m_config.fieldOfView, m_config.robotReactDistance);
+double highestOtherRobotValue = 0;
+for (pair<double, double> p : otherRobotIntervals)
+    if (p.second > highestOtherRobotValue)
+        highestOtherRobotValue = p.second;
+bool reactToRobot = otherRobotIntervals.size() > 0 && right < highestOtherRobotValue;
 
-        if (puckValid) {
-            //m_targetThreshold = fmax(0.01, puckValue);
-            m_targetThreshold = puckValue;
-            //cerr << "m_targetThreshold: " << m_targetThreshold << endl;
+
+        if (reactToRobot)
+            m_targetThreshold += 0.01;
+        else {
+//            m_targetThreshold -= 0.01;
+            if (puckValid)
+                m_targetThreshold = puckValue;
         }
+
 
         double epsilon = 0;
         if (m_targetThreshold != 0)
             epsilon = (fmin(forward, 2 * m_targetThreshold) - m_targetThreshold) / m_targetThreshold;
-        //cerr << "epsilon: " << epsilon << endl;
-
-        m_maxAbsFminusC = fmax(fabs(forward - centre), m_maxAbsFminusC); 
 
         // Forward and angular speed, to be further specified below.
         double v = 1;
         double w = 0;
-
-/*
-        if (forward >= 1 || centre >= 1 || right >= 1) {
-            // The sensors are off the edge of the grid, or in the middle of
-            // an obstacle where there is no valid reading.  Just veer right.
-            w = m_config.Komega;
-            m_indicator.r = 255;
-            //cerr << "OFF-GRID" << endl;
-
-        } else if (right > centre) {
-            if (forward > centre)
-                w = m_config.Komega;
-            else
-                w = -m_config.Komega;
-            m_indicator.b = 255;
-            //cerr << "REALIGN" << endl;
-        } else {
-            //
-            // Kbal should be in [0, 1] and selects the balance between these two
-            // error terms:
-            // 
-            //  Alignment term: (forward - centre) / m_maxAbsFminusC
-            //  Distance term: epsilon
-            //
-            w = m_config.Kbal * (forward - centre) / m_maxAbsFminusC + (1.0 - m_config.Kbal) * epsilon;
-
-            m_indicator.g = 255;
-            //cerr << "PROP" << endl;
-        }
-*/
 
         if (forward >= 1)
             w = 1.0;
         else {
             if (right > centre) {
                 v = 0;
-                //w = (forward - centre) / m_maxAbsFminusC;
                 if (forward > centre)
                     w = 1;
                 else
@@ -128,17 +103,17 @@ public:
             }
         }
 
-        if (robotAhead)
-            v = 0.1;
+//        if (robotAhead)
+//            w = -0.5;
 
         //
         // Debug / visualization
         //
 
-        if (right > centre)
-            m_robot.addComponent<CColor>(0, 255, 0, 255);
-        else
+        if (reactToRobot)
             m_robot.addComponent<CColor>(255, 0, 0, 255);
+        else
+            m_robot.addComponent<CColor>(0, 255, 0, 255);
         
         if (m_robot.getComponent<CControllerVis>().selected) {
             Vec2 robotPos = m_robot.getComponent<CTransform>().p;

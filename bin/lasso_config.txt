@@ -1,10 +1,10 @@
-numRobots      1
+numRobots      10
 robotRadius    28
 plowLength     60
 plowAngleDeg   0
 gui            1
-numPucks       0 
-puckRadius     8
+numPucks       100 
+puckRadius     4
 threshold      0.85
 simTimeStep    1.0
 renderSkip     1

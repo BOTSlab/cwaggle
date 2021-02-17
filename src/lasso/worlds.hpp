@@ -39,18 +39,16 @@ Entity addRobot(std::shared_ptr<World> world, ExperimentConfig config)
     if (config.plowLength > 0)
         robot.addComponent<CPlowBody>(config.plowLength, config.robotRadius, config.plowAngleDeg);
 
-    constexpr double sensorSpacing = 15;
-
     // Position of plow tip (f for forward sensor).
     double fx = config.plowLength * cos(plowAngleRad) - config.puckRadius;
     double fy = config.plowLength * sin(plowAngleRad) + config.puckRadius;
 
     double forwardAngleDeg = (180 / M_PI) * atan2(fy, fx);
     double forwardDist = hypot(fy, fx);
-    double centreAngleDeg = (180 / M_PI) * atan2(fy, fx - sensorSpacing);
-    double centreDist = hypot(fy, fx - sensorSpacing);
-    double rightAngleDeg = (180 / M_PI) * atan2(fy + sensorSpacing, fx - sensorSpacing);
-    double rightDist = hypot(fy + sensorSpacing, fx - sensorSpacing);
+    double centreAngleDeg = (180 / M_PI) * atan2(fy, fx - config.plowLength);
+    double centreDist = hypot(fy, fx - config.plowLength);
+    double rightAngleDeg = (180 / M_PI) * atan2(fy + config.robotRadius, fx - config.plowLength);
+    double rightDist = hypot(fy + config.robotRadius, fx - config.plowLength);
 
     sensors.gridSensors.push_back(make_shared<GridSensor>(robot, "gridForward0", 0, forwardAngleDeg, forwardDist));
     sensors.gridSensors.push_back(make_shared<GridSensor>(robot, "gridCentre0", 0, centreAngleDeg, centreDist));
